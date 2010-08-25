@@ -1,0 +1,6 @@
+#!/bin/sh
+
+cmd=`type -path $0`
+sl_path=`dirname $cmd`
+
+$sl_path/../lib/go.py  $sl_path "$@"

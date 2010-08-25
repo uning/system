@@ -1,0 +1,111 @@
+#!/bin/bash
+#sunjingwei 2007-8-2
+#报警配置修改工具
+#common common
+#sunjingwei
+logname_login="`logname`"
+usage()
+{
+	echo "Usage : "`basename $0 `" -d dir -e your_email -m your_mobile [-E|Exclude exclude_dir ] [-p|pattern filename_Pattern] "
+	echo "	-d dir ,修改该目录下所有的报警"
+	echo "	-e 你的email地址，dir目录下的所有email地址将被修改为此邮件地址"
+	echo "	-m 你的mobile号码，dir目录下的所有手机号码都将被修改为此手机号码"
+	echo "	-E 你不需要进行修改配置的目录，此目录下的文件的email和mobile不会被替换"
+	echo "	-p 你需要进行修改的文件的匹配模式：比如\"*.conf|*.php\""
+	echo "	例子：change_warn -d ~/aos/aos-client -e sunjingwei@baidu.com -m 13522033228 -E ~/aos/aos-client/bin -p \"*.conf|*.php\""
+	echo "	例子2:change_warn -d . -e sunjingwei@baidu.com -m 13522033228,将当前目录下所有匹配的邮件和电话进行替换"
+	exit 0
+}
+
+while getopts d:e:m:p:E:h OPTION
+do
+case $OPTION in 
+	d|dir)
+	dir=$OPTARG
+	;;
+	e|email)
+	email=$OPTARG
+	;;
+	m|mobile)
+	mobile=$OPTARG
+	;;
+	p|pattern)
+	pattern="$OPTARG"
+	;;
+	E|Exclude)
+	exclude=$OPTARG;
+	;;
+	*)usage
+	;;
+esac
+done
+
+if [ -z $mobile -o -z $email ];then
+	usage
+fi
+if [ -z $dir ];then
+	usage
+fi
+
+if [ -z $pattern ];then
+	pattern="*"
+fi;
+
+if [ -z $exclude ];then
+	exclude="^$"
+fi;
+
+echo "$mobile" |grep "1[35][0-9]\{9\}" >/dev/null 2>&1
+if [ $? -ne 0 ];then
+	echo "手机号码格式错误"
+	exit 1
+fi;
+
+echo "$email" |grep "@baidu\.com" >/dev/null 2>&1
+if [ $? -ne 0 ];then
+	echo "邮件地址必须为***@baidu.com"
+	exit 1
+fi;
+
+#处理exclude,dir,将~替换为/home/work,将./lib替换为:当前目录+/lib
+echo "$exclude" |grep "^~" >/dev/null 2>&1
+if [ $? -eq 0 ];then
+	exclude=`echo $exclude |sed "s#^~#$home/#"`
+fi;
+
+echo "$exclude" |grep "^\." >/dev/null 2>&1
+if [ $? -eq 0 ];then
+	exclude=`echo $exclude |sed "s#^.#$PWD#"`
+fi;
+
+echo "$dir" |grep "^~" >/dev/null 2>&1
+if [ $? -eq 0 ];then
+	dir=`echo $dir|sed "s#^~#$home/#"`
+fi;
+
+echo "$dir" |grep "^\." >/dev/null 2>&1
+if [ $? -eq 0 ];then
+	dir=`echo $dir|sed "s#^.#$PWD#"`
+fi;
+	
+#将非@baidu.com结尾的email修改为以@baidu.com结尾，这样修改可以循环
+email=`echo $email | sed 's/@.*//'`
+
+#目前的做法考虑到email地址中包含a-zA-Z,下划线，中划线，0-9等字符@baidu.com
+#mobile号码包括13/15开头的11位号码
+#处理"sunjingwei\@baidu.com"这种情况,perl经常使用
+#利用file判断一下属于text类型的才去替换
+for x in `find $dir -type f |grep -vE "$exclude" |grep -E "$pattern"`;
+do
+	file $x |grep "text" >/dev/null 2>&1
+	if [ $? -eq 0 ];then 
+		sed "s/[-_.a-zA-Z0-9]*\([\\]\?\)@baidu\.com\>/$email\1@baidu.com/ig" $x >/tmp/change_warn_tempfile$logname_login
+		cp /tmp/change_warn_tempfile$logname_login $x
+		sed "s/\<1[35][0-9]\{9\}\>/$mobile/g" $x >/tmp/change_warn_tempfile$logname_login
+		cp /tmp/change_warn_tempfile$logname_login $x
+	fi;
+done;
+
+echo "修改之后的结果如下：请复查"
+find $dir -type f |grep -vE "$exclude" |grep -E "$pattern"|xargs grep "@baidu.com\>"
+find $dir -type f |grep -vE "$exclude"|grep -E "$pattern"|xargs grep "\<1[35][0-9]\{9\}\>"

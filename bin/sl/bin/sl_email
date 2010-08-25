@@ -1,0 +1,50 @@
+#!/bin/bash
+
+function usage
+{
+        echo -e "Usage: $0 -t [title] -c [cont] -e [to-mail] -a [<att>]" 
+}
+
+while getopts t:c:e:a: OPTION
+do      
+        case $OPTION in
+                t) TITLE="${OPTARG}"
+                ;;
+		c) CONT="${OPTARG}"
+		;;
+                e) EMAIL="${OPTARG}"
+                ;;
+                a) ATT="${OPTARG}"
+                ;;
+                \?) usage; exit 1
+                ;;
+        esac
+done
+
+if [ "${TITLE}" == "" ] || [ "${CONT}" == "" ] || [ "$EMAIL" == "" ] || [ $# -lt 6 ]
+then
+	usage
+	exit 1
+fi
+
+f_email="shell-lib@`hostname`"
+
+if [ "${ATT}" != "" ]
+then
+	if [ ! -f "${ATT}" ]
+	then
+		echo "Error : »ñÈ¡¸½¼þÊ§°Ü"
+		exit 1
+	fi
+
+	ARG="-a ${ATT}"
+else
+	ARG=""
+fi
+
+if [ -f "${CONT}" ]
+then
+	cat "${CONT}" | sendEmail -s hotswap-in.baidu.com -u "[WARNING!!]${TITLE}" -f "${f_email}" -t ${EMAIL} ${ARG} -q
+else
+	echo "${CONT}" | sendEmail -s hotswap-in.baidu.com -u "[WARNING!!]${TITLE}" -f "${f_email}" -t ${EMAIL} ${ARG} -q
+fi

@@ -1,0 +1,85 @@
+#!/bin/bash
+
+cat <<USAGE
+
+Ò»¡¢³£ÓÃÖ¸Áî9¸ö£º
+
+	go		¿ìËÙµÇÂ½Ö¸Áî£¬Ö§³Ö»úÆ÷ÃûËõĞ´£¬Èçgo jx1112¡£Ô¶³Ìµ÷ÓÃÖ¸Áîgo zjm85 do ¡°ls¡±¡£²»ÊÜĞÅÈÎ¹ØÏµ¾ÖÏŞ¡£ 
+
+	pscp		Ô¶³Ì¿½±´Ö¸Áî£¬Ö§³Ö»úÆ÷ÃûËõĞ´£¬Ê¹ÓÃ·½Ê½Í¬scp¡£²»ÊÜĞÅÈÎ¹ØÏµ¾ÖÏŞ¡£ 
+
+	blackgo		¾Ü¾øÁ¬½Ó·şÎñÖ¸Áî¡£ÈçÔÚzjm85ÉÏÖ´ĞĞblackgo all£¬ÔòËùÓĞ²âÊÔ»ú½«²»µÃ¶Ôzjm85Ö´ĞĞgoºÍpscp²Ù×÷¡£´ËÃüÁî²»Ö§³Ö»úÆ÷ÃûËËõĞ´¡£
+
+	whitego 	ÔÊĞíÁ¬½Ó·şÎñÖ¸Áî¡£ÔÚ¾Ü¾øÁĞ±íºÍÔÊĞíÁĞ±íÖĞ¶¼ÓĞµÄ»°£¬ÒÔÔÊĞíÁ¬½ÓµÄÁĞ±íÎª×¼¡£´ËÃüÁî²»Ö§³Ö»úÆ÷ÃûËõĞ´¡£ 
+
+	changewarn	±¨¾¯ÊÖ»ú¡¢ÓÊ¼şĞŞ¸ÄÖ¸Áî¡£Ö»ÄÜÓÃÓÚĞŞ¸Ä£¬²»¿ÉÓÃÓÚÌí¼Ó¡£ 
+
+	howlong		¼ÆËãÁ½¸öÊ±¼äµãÖ®¼ä³¤¶ÈµÄÖ¸Áî¡£ 
+
+	calc		¸¡µãËÄÔòÔËËãÖ¸Áî¡£ 
+
+	pow		¸¡µã´Î·½¡¢¿ª·½ÔËËãÖ¸Áî¡£
+
+	sl_email	ÓÊ¼ş·¢ËÍÃüÁî¡£
+
+¶ş¡¢³£ÓÃº¯Êı21¸ö£º(source sl.sh)
+
+	1¡¢×Ö·û´®´¦Àíº¯Êı
+
+	sl_strlen()	¼ÆËã×Ö·û´®³¤¶È¡£
+
+	sl_lower()	Ğ¡Ğ´×ª»»¡£
+
+	sl_upper()	´óĞ´×ª»»¡£
+
+	sl_swapcase()	´óĞ¡Ğ´»¥»»¡£
+
+	sl_substr()	»ñÈ¡×Ó´®¡£
+
+	sl_strstr()	²éÕÒ×Ó´®¡£
+
+	sl_count()	¼ÆËã×Ó´®ÔÚÔ­´®ÖĞ³öÏÖµÄ´ÎÊı¡£
+
+	sl_split()	×Ö·û´®·Ö¸î¡£
+
+	sl_replace()	×Ö·û´®Ìæ»»¡£
+
+	2¡¢ÈÕÖ¾´òÓ¡º¯Êı
+
+	sl_openlog()	´ò¿ªÈÕÖ¾ÎÄ¼ş¡£
+
+	sl_setlevel()	ÉèÖÃÈÕÖ¾¼¶±ğ¡£
+
+	sl_writedebug()	´òÓ¡ÂÌÉ«µÄdebugÈÕÖ¾
+
+	sl_writeinfo()	ºÚÉ«µÄnoticeÈÕÖ¾
+
+	sl_writewarn()	»ÆÉ«µÄwarningÈÕÖ¾
+
+	sl_writefatal()	ºìÉ«µÄfatalÈÕÖ¾¡£
+
+	3¡¢ÅäÖÃ·ÃÎÊº¯Êı 
+
+	sl_openconf()	´ò¿ªÅäÖÃÎÄ¼ş¡£
+
+	sl_getconf()	»ñµÃÅäÖÃÏî¡£
+
+	sl_setconf()	ÉèÖÃÅäÖÃÏî¡£
+
+	sl_delconf()	É¾³ıÅäÖÃÏî¡£
+
+	sl_closeconf()	¹Ø±ÕÅäÖÃÏî¡£
+
+ÏêÏ¸Ê¹ÓÃËµÃ÷Çë²Î¼û¡¶Shell-lib Release Notes v1.0¡·£º
+
+	http://com.baidu.com/twiki/pub/Test/Shell-lib%e5%ba%93/Shell-lib_Release_Notes_v1.0.doc
+
+ÄúÔÚÊ¹ÓÃÖĞÓĞÈÎºÎÒâ¼û»ò½¨Òé£¬»¶Ó­Ìá½»µ½wiki-shelllib£º
+
+	http://com.baidu.com/twiki/bin/view/Test/Shell-lib%e5%ba%93
+
+	»ò£¬·¢ËÍÓÊ¼ş¸øÎÒÃÇ£º
+
+	xieping@baidu.com; liyunxiang@baidu.com
+
+USAGE

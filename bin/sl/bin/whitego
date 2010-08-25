@@ -1,0 +1,92 @@
+#!/bin/sh
+
+usage() {
+        echo "Usage: $0 { all | none | list | add [hostname]+ | del [hostname]+ }"
+}
+
+_del() {
+        sed '/SL_WHITELIST=/d' ~/.bash_profile > $$.$$
+        mv $$.$$ ~/.bash_profile
+}
+
+list() {
+        echo -n 'WHITELIST:'
+        grep '^[ \t]*SL_WHITELIST=' ~/.bash_profile|sed 's/SL_WHITELIST=//g'
+        echo ''
+}
+
+add() {
+        tmp=`grep '^[ \t]*SL_WHITELIST=' ~/.bash_profile`
+        if [ x$tmp = x ]; then
+            echo "SL_WHITELIST=$1" >>~/.bash_profile
+        else
+            a=`echo $tmp|grep "[=:][ \t]*$1[ \t]*:"`
+            b=`echo $tmp|grep "[=:][ \t]*$1[ \t]*$"`
+            _del;
+            if [ x$a != x ]; then
+                echo $a >> ~/.bash_profile
+            elif [ x$b != x ]; then
+                echo $b >> ~/.bash_profile
+            else
+                echo $tmp:$1 >> ~/.bash_profile
+            fi
+        fi
+}
+
+del() {
+        tmp=`grep '^[ \t]*SL_WHITELIST=' ~/.bash_profile`
+        if [ x$tmp = x ]; then
+            echo "SL_WHITELIST=$1" >>~/.bash_profile
+        else
+            _del;
+            a=`echo $tmp|sed -e 's/='$1'$/=/g' -e 's/='$1':/=/g' -e 's/:'$1':/:/g' -e 's/:'$1'$//g'`
+            echo $a >> ~/.bash_profile
+        fi
+}
+
+case "$1" in
+'all')
+        _del;
+        echo 'SL_WHITELIST=.*' >>~/.bash_profile
+        echo -e 'whitego all ........................................\033[32m[OK]\033[0m'
+        ;;
+'none')
+        _del;
+        echo -e 'whitego none .......................................\033[32m[OK]\033[0m'
+        ;;
+'list')
+        list;
+        ;;
+'add')
+        shift
+        if [ $# -lt 1 ]; then
+             usage;
+             echo -e 'whitego add .......................................\033[31m[FAIL]\033[0m'
+             exit 1
+        fi
+       
+        for i in "$@"; 
+        do
+            add "$i"
+        done
+        echo -e "whitego add $@ ........\033[32m[OK]\033[0m"
+        ;;
+'del')
+        shift
+        if [ $# -lt 1 ]; then
+             usage;
+             echo -e 'whitego del .......................................\033[31m[FAIL]\033[0m'
+             exit 1
+        fi
+
+        for i in "$@";
+        do
+            del "$i"
+        done
+        echo -e "whitego del $@ ........\033[32m[OK]\033[0m"
+        ;;
+*)
+        usage;
+        exit 1
+        ;;
+esac

@@ -1,0 +1,28 @@
+[domain]
+default = ijet
+all = ijet,renren
+
+[ijet]
+
+[[default]]
+user = root
+password = GyPZvMths
+
+[[rules]]
+rule1 = ruleA0
+
+
+[[machines]]
+#first user/password pair is the default
+208.43.122.142 = root/WtTj65ubD
+208.43.122.143 = root/Qp55QPRxJ
+208.43.122.144 = root/YG82VlNRR
+208.43.122.145 = root/SjwA5eahe
+208.43.122.146 = root/CCVv8kZTB
+208.43.122.147 = root/GyPZvMths
+
+[renren]
+[[default]]
+user =  root
+password = west999
+
