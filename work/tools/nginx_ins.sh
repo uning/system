@@ -32,8 +32,7 @@ install_()
 	pack=nginx-$VER.tar.gz
 	ne_download_untar $pack http://sysoev.ru/nginx/nginx-$VER.tar.gz
 	cd nginx-$VER/
-	./configure --user=hotel --group=hotel --prefix=$SYS/nginx --with-http_stub_status_module --with-http_ssl_module  --with-http_gzip_static_module --add-module='/usr/local/lib/ruby/gems/1.8/gems/passenger-2.2.15/ext/nginx'
-	make && make install
+	./configure --prefix=$SYS/nginx --with-http_stub_status_module --with-http_ssl_module  --with-http_gzip_static_module 	make && make install
 	cd ../
 }
 
