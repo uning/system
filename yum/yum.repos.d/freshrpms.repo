@@ -1,0 +1,4 @@
+[freshrpms]
+name=Fedora Linux $releasever - $basearch - freshrpms
+baseurl=http://ayo.freshrpms.net/fedora/linux/$releasever/$basearch/freshrpms
+gpgcheck=0
