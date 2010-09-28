@@ -99,6 +99,8 @@ __install()
 	make ZEND_EXTRA_LIBS='-liconv'
 	make install
 	cd ../
+	$prefix/bin/pecl install   apc-3.1.4
+	$prefix/bin/pecl install   tokyo_tyrant-0.5.0          
 
 }
 

@@ -26,26 +26,10 @@ yum -y install glibc glibc-devel glib2 glib2-devel bzip2 bzip2-devel ncurses ncu
 yum -y install e2fsprogs e2fsprogs-devel krb5 krb5-devel libidn libidn-devel openssl openssl-devel openldap 
 yum -y install openldap-devel nss_ldap openldap-clients openldap-servers
 yum -y install libevent-devel.x86_64   rsync.x86_64
-yum -y install gcc gcc-c++ autoconf libjpeg libjpeg-devel libpng libpng-devel \
 yum -y install ruby.x86_64
+yum -y install pcre-devel.x86_64 libmcrypt-devel.x86_64
 
-yum -y install git-core
-yum -y install ruby.x86_64
-
-if [ "`cap -V`" ] ;then
-:
-else
-wget http://rubyforge.org/frs/download.php/60718/rubygems-1.3.5.tgz
-tar zxvf rubygems-1.3.5.tgz
-cd rubygems-1.3.5
-ruby setup.rb
-cd ~/
-
-gem sources -a http://gems.github.com/
-gem install capistrano
-gem install leehambley-railsless-deploy
-
-fi
+yum -y install mysql-server.x86_64 mysql-devel.x86_64 
 
 
 
