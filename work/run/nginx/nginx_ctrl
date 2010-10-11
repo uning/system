@@ -1,0 +1,67 @@
+#! /bin/sh
+
+### BEGIN INIT INFO
+# Provides:          nginx
+# Required-Start:    $all
+# Required-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: starts the nginx web server
+# Description:       starts nginx using start-stop-daemon
+### END INIT INFO
+
+
+NGINX_TOP=/home/hotel/work/sys/nginx
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=$NGINX_TOP/sbin/nginx
+NAME=nginx
+DESC=nginx
+
+RUN_DIR=/home/hotel/work/run/nginx   
+
+test -x $DAEMON || exit 0
+
+# Include nginx defaults if available
+if [ -f /etc/default/nginx ] ; then
+    . /etc/default/nginx
+fi
+
+set -e
+
+. /lib/lsb/init-functions
+
+case "$1" in
+  start)
+    echo -n "Starting $DESC: "
+	$DAEMON 
+    echo "$NAME."
+    ;;
+  stop)
+    echo -n "Stopping $DESC: "
+	$DAEMON -s stop
+    echo "$NAME."
+    ;;
+  restart|force-reload)
+    echo -n "Restarting $DESC: "
+	$DAEMON -s reopen
+    echo "$NAME."
+    ;;
+  reload)
+      echo -n "Reloading $DESC configuration: "
+	$DAEMON -s reload
+      echo "$NAME."
+      ;;
+  status)
+      status_of_proc -p $RUN_DIR/$NAME.pid "$DAEMON" nginx && exit 0 || exit $?
+      ;;
+  *)
+    N=$0
+    echo "Usage: $N {start|stop|restart|reload|force-reload|status}" >&2
+    exit 1
+    ;;
+esac
+
+exit 0
+
+
