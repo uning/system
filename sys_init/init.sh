@@ -17,7 +17,7 @@ passwd hotel <<EOT
 play!@#crab
 play!@#crab
 EOT
-echo "hotel ALL=(ALL)       ALL" >>/etc/sudoers
+echo "hotel ALL=(ALL) NOPASSWD: ALL" >>/etc/sudoers
 
 #init lib we used
 yum -y install gcc gcc-c++ autoconf libjpeg libjpeg-devel libpng libpng-devel 
