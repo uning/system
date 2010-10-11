@@ -1,10 +1,9 @@
 
 
 
-ulimit -SHn 65535
 killall php-fpm
-rm /home/hotel/work/sys/php/var/log/*
+rm -rf /home/hotel/work/log/php/*
 /home/hotel/work/sys/php/sbin/php-fpm
 
-tail /home/hotel/work/sys/php/var/log/*
 
+tail /home/hotel/work/log/php/*
