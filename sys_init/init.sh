@@ -12,7 +12,7 @@ yum -y install git-core
 
 
 #add user hotel
-useradd  hotel  -g sys  -m  -s /bin/bash
+useradd  hotel    -m  -s /bin/bash
 passwd hotel <<EOT
 play!@#crab
 play!@#crab
