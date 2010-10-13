@@ -21,4 +21,5 @@ group=hotel
 
 cat <<EOT
 echo  "GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' IDENTIFIED BY '123456'" | mysql -uroot -P3307  --socket=/tmp/mysql3307.sock 
+echo  "GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost' IDENTIFIED BY '123456'" | mysql -uroot -P3307  --socket=/tmp/mysql3307.sock
 EOT
