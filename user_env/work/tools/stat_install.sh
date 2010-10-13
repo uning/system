@@ -1,5 +1,6 @@
 
-statdb=/home/hotel/statdb/
+statdb=/home/hotel/work/statdb/
+cd $statdb
 wget http://www.infobright.org/downloads/ice/infobright-3.3.1-x86_64-ice.tar.gz
 tar zxvf infobright-3.3.1-x86_64-ice.tar.gz
 mv infobright-3.3.1-x86_64 infobright
