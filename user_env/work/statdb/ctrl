@@ -1,11 +1,11 @@
 #!/bin/sh
 
 mysql_port=3307
-mysql_username="admin"
-mysql_password="12345678"
+mysql_username="root"
+mysql_password=""
 
-infob_dir=/home/hotel/study/infobright
-my_dir=/home/hotel/study/statdb
+infob_dir=/home/hotel/work/statdb/infobright
+my_dir=/home/hotel/work/statdb
 
 function_start_mysql()
 {
