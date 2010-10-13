@@ -20,6 +20,5 @@ sudo ./install-infobright.sh --datadir=$statdb/data --cachedir=$statdb/cache --c
 group=hotel
 
 cat <<EOT
-mysql -uroot -P3307  --socket=/tmp/mysql3307.sock 
-GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' IDENTIFIED BY '123456';
+mysql -uroot -P3307  --socket=/tmp/mysql3307.sock GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' IDENTIFIED BY '123456';
 EOT
