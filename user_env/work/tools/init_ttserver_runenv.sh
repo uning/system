@@ -21,34 +21,29 @@
 
 name=$1
 port=$2
-dbtype=$3
+dbtype=$3 #tt->table th->hash defalt btree
 
 RUN=/home/hotel/ttserver_deploy
 mrun_dir=$RUN/$name.$port  
-mlog_dir=$RUN/$name.$port/log
-mdata_dir=$RUN/$name.$port/data
 mport=$((port+1))
 if [ $mport -eq 1 ] ;then
 	echo 'port invalid,use default 11978'
 	port=11978
 fi
 
-if [ -d $mdata_dir ] ; then 
-	echo "data dir :$mdata_dir exists .exit";
+if [ -d $mrun_dir ] ; then 
+	echo "data dir :$run exists .exit";
 	rm -rf $mdata_dir
 	#exit 1
 fi
 
 mkdir -p $mrun_dir
-mkdir -p $mlog_dir
-mkdir -p $mdata_dir
 echo init $name in $mrun_dir
 
 
 if [ "x$name" == "x" ] ;then
     dbname="*.tcf#capsiz=268435456#capnam=10000000" #mem hashdb 256M, <1000w records
 fi
-
     dbname="$mdata_dir/log.tct#lmemb=1024#nmemb=2048#bnum=200000000#opts=l#rcnum=100000#idx=u"
     dbname="$mdata_dir/main.tct#lmemb=1024#nmemb=2048#bnum=200000000#opts=l#rcnum=100000#idx=u#idx=@"
     dbname="$mdata_dir/genid.tct#lmemb=1024#nmemb=2048#bnum=200000000#opts=l#rcnum=100000#idx=@"
