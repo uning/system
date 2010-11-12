@@ -33,7 +33,7 @@ logfile="$basedir/log.err"
 ulogdir="$basedir/data/ulog"
 ulimsiz="256m"
 rtsfile="$basedir/data/rts"
-dbname="$basedir/data/dbdata$dbconfig"
+dbname="$basedir/data/$dbconfig"
 
 
 maxcon="65535"
@@ -51,7 +51,7 @@ export LANG LC_ALL PATH
 status(){
     $tool_top/tcrmgr inform -port $port -st localhost
     if [ $mhost ] ; then
-        $tool_top/tcrmgr inform -port $mhost -st $mhost
+        $tool_top/tcrmgr inform -port $mport -st $mhost
     fi
 
 }
@@ -182,11 +182,11 @@ restart)
 hup)
   hup
   ;;
-statuc)
+status)
   status
   ;;
 *)
-  printf 'Usage: %s {start|stop|restart|hup}\n' "$prog"
+  printf 'Usage: %s {start|stop|restart|hup|status}\n' "$0"
   exit 1
   ;;
 esac
