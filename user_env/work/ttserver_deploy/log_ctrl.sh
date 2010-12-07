@@ -6,9 +6,10 @@
 # 命名为 0.xxx0 1.xxx1 ... 6.xxx6
 # crontab 重启并清除明天所用服务器日志数据 
 # 58 0 * * * hotel path/to/me  restart_tomorrow
+#58 0 * * * hotel /home/hotel/ttserver_deploy/log_tt/log_ctrl.sh  restart_tomorrow
 #
 
-page_root=`pwd`/`dirname $0`''
+page_root=`dirname $0`
 my_ab_path=`cd $page_root && pwd`
 start_port=16500
 
