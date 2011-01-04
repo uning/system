@@ -35,17 +35,23 @@ ttserver absolute/path/to/run #監控對應目錄下的ttserver
 EOT
 }
 
+in_source=0
+#this is just for source
+if [ "$0" == "-bash" ] ; then
+    page_root=./
+    in_source=1
+else
+    page_root=$(dirname $0)
+fi
 
-page_root=`pwd`/`dirname $0`''
 my_ab_path=`cd $page_root && pwd`
 datestr=$(date)
-outfile_sufix=.`date +%s`
+outfile_sufix=.$(date +%s)
 outfile_sufix=.txt
 status_file=$my_ab_path/monitor.status
 conf_file=$my_ab_path/monitor.sh.config
 rm -f $my_ab_path/monitor.out*
 #默认配置
-
 if  [ ! -f $conf_file ] ; then
     echo not $conf_file
     #默認配置
@@ -68,7 +74,6 @@ fi
 ps_progname_check()
 {
     name=$1
-    update=$2
     local tmpresult=$my_ab_path/monitor.out.ps$outfile_sufix
     if [ "$update" == 1 ] || [ ! -f $tmpresult ] ; then
         ps aux  2>/dev/null >$tmpresult
@@ -87,7 +92,6 @@ ps_pid_check()
 listen_port_check()
 {
     port=$1
-    update=$2
     local tmpresult=$my_ab_path/monitor.out.netstat$outfile_sufix
     if [ "$update" == 1 ] || [ ! -f $tmpresult ] ; then
         netstat -nlp  2>/dev/null >$tmpresult
@@ -153,12 +157,12 @@ EOT
   fi
   }
   echo OK
-
 }
 
 
 #check_xxx 返回OK，代表不需要重啟
 #否则需要
+#################################php-fpm####################################
 check_phpfpm()
 {
     meta_check phpfpm php-fpm 2 0 9000
@@ -167,44 +171,54 @@ check_phpfpm()
 restart_phpfpm()
 {
     killall php-fpm
-    /home/hotel/work/sys/php/sbin/php-fpm
+    $my_ab_path/../sys/php/sbin/php-fpm
+    sleep 2
 }
 
-##########################################################################
+#################################nginx####################################
 check_nginx()
 {
     
     meta_check nginx nginx 2 0 80
-    :
 
 }
 
 restart_nginx(){
- :
- #need su  or sudo 
+ sudo $my_ab_path/../run/nginx/nginx_ctrl stop
+ sudo rm $my_ab_path/../run/nginx/nginx.pid
+ sudo $my_ab_path/../run/nginx/nginx_ctrl start
 }
 
-##########################################################################
+#################################mysql####################################
+
+###################################ttserver###################################
 #監控本機ttserver 并重啟
-check_ttserver()
+check_ttserver_run()
 {
     path=$1
     my_name=`basename $path`
     port=$(echo $my_name  | awk -F. '{print $2}' | sed -e 's/[^0-9]//g' )
-    listened=$(listen_port_check $port)  
-    echo listen_port_check $port
     pid=$(cat $path/pid 2>/dev/null) #use pid to do something 
-    if [ $listened -lt 1 ] ;then
+    [ -n "$pid" ] || pid=0
+    meta_check $path NN 1 $pid $port
+}
+
+check_ttserver()
+{
+    path=$1
+    statuss=$(check_ttserver_run $path)
+    if [ "$statuss" != "OK"  ] ;then
         write_err KO ttserver $path 
         cd $path && ./ctrl stop 
         rm -f $path/pid
         cd $path && ./ctrl start 
-        sleep 1
-        listened=$(netstat -nlp 2>/dev/null | grep -c ":$port")  
-        if [ $listened -lt 1 ] ;then
-            write_err KO ttserver restart $path  
+        sleep 3
+        update=1
+        statuss=$(check_ttserver_run $path)
+        if [ "$statuss" != "OK"  ] ;then
+            write_err KO ttserver  $path  restart error $statuss
         else
-            write_err OK ttserver restart $path  
+            write_err OK ttserver  $path  restart ok
         fi
     else
         write_std OK ttserver $path
@@ -212,11 +226,14 @@ check_ttserver()
 }
 
 
+if [ $in_source -eq 1 ] ; then 
+    return 1
+fi
+
 
 
 while read line 
 do
-
     name=$(echo $line | awk '{print $1}')
     checkcmd=$(echo $line | awk '{print $2}')
     restartcmd=$(echo $line | awk '{print $3}')
@@ -235,15 +252,17 @@ do
         write_err $statuss $name,restart 
         $restartcmd
         sleep 1
+        update=1;
         statuss=$($checkcmd)
         if [ "$statuss" != 'OK' ] ; then
             write_err $statuss $name restart error 
         else
-            write_err $statuss $name restart OK
+            write_err OK $name restart OK
         fi
     else
             write_std $statuss $name 
     fi
 done  <$conf_file | tee $status_file.out 2>>$status_file.err
+
 
 
