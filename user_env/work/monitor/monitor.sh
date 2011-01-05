@@ -32,7 +32,6 @@ cat <<EOT
 使用同一目录下的monitor.sh.config指定监控具体服务
 #php-fpm check_phpfpm restart_phpfpm #監控php-fpm
 #ttserver absolute/path/to/run #監控對應目錄下的ttserver
-
 */5 * * * *   cd /home/user_00/work/monitor && ./monitor.sh >cron.log 2>&1
 EOT
 }
