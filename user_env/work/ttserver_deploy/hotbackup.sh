@@ -26,7 +26,7 @@ my_name=`basename $my_ab_path`
 
 WORK_DIR=`pwd`
 
-[  -f $my_ab_path/config.sh ] || { echo config find  ; exit ; }
+[  -f $my_ab_path/config.sh ] || { echo config not find  ; exit ; }
 . $my_ab_path/config.sh
 
 usage(){
