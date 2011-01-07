@@ -29,17 +29,16 @@ port=$(echo $my_name | awk -F. '{print $2}' | sed s/[^0-9]//g)
 
 
 dbconfig="data.tct#lmemb=1024#nmemb=2048#bnum=20000#opts=l#rcnum=1000#idx=u" #for table
-dbconfig="data.tcb#lmemb=1024#nmemb=2048#bnum=20000"  #for key value
+dbconfig="data.tcb#lmemb=1024#nmemb=2048#bnum=2000000"  #for key value
 
-ulogdir="$basedir/ulog" #//如果不需要ulog，註釋掉即可
 
-mport=$port
 
 pidfile="$basedir/pid"
 logfile="$basedir/log.err"
 ulimsiz="256m"
 rtsfile="$basedir/data/rts"
 dbname="$basedir/data/$dbconfig"
+ulogdir="$basedir/data/ulog" #//如果不需要ulog，註釋掉即可
 mkdir -p $basedir/data/
 
 

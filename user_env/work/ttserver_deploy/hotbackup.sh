@@ -24,9 +24,8 @@ page_root=`dirname $0`
 my_ab_path=`cd $page_root && pwd`
 my_name=`basename $my_ab_path`
 
-WORK_DIR=`pwd`
 
-[  -f $my_ab_path/config.sh ] || { echo config not find  ; exit ; }
+[  -f $my_ab_path/config.sh ] || { echo config find  ; exit ; }
 . $my_ab_path/config.sh
 
 usage(){
@@ -34,7 +33,6 @@ cat <<EOT
  指定目标ttserver的端口和机器 本地端口，生成实时热备，并开始
 
  $0 port [myport --default port ] [mysid --default port] [host --defalult localhost] [mypath  --default current pwd ]  
-
     port  -- source ttserver port
     myport -- new ttserver where to create the run env
     mysid   -- serverid default port
@@ -55,9 +53,7 @@ else
     exit 
 fi      
 
-[ -x $TT_TOOL_TOP/tcrmgr ] || { echo no tcmgr check TT_TOOL_TOP in config ; exit ; }
-[ -x $SSH_TOOL_TOP/pscp ] || { echo no pscp check SSH_TOOL_TOP in config; exit ; }
-PATH=$SSH_TOOL_TOP:$TT_TOOL_TOP:$PATH
+check_if_exit $TT_TOOL_TOP/tcrmgr -x
 
 
 backup_date=`date +%s%N`
@@ -72,45 +68,25 @@ host=$4
 mypath=$5
 [ ! -n "$port" ] && { echo  no port ; usage ; exit ; } 
 [ -n "$myport" ] || myport=$port
-[ -n "$host" ]   || host='127.0.0.1'
+[ -n "$host" ]   || host='localhost'
 [ -n "$mypath" ] || mypath=$WORK_DIR
 
 
 checkport=$(listen_port_check $myport)
 [ "$checkport" == "1" ] && { echo ready to port $myport is used ; exit ; }
 
-inform_out=$my_ab_path/${host}_$port.inform.out
-tcrmgr inform -port $port  -st $host > $inform_out
-spath=$(awk '{if($1=="path")print $2; }'  $inform_out)
-[ -z "$spath" ] && { echo not get db path plz check; exit ; }
-#dbtype=$(echo $spath | awk -F. '{print $NF}') #get ext
-dbtype=${spath##*.} # get ext 
-echo "$dbtype=dbtype";
 
-msid=$(awk '{if($1=="sid")print $2; }'  $inform_out)
-[ -n "$sid" ] || sid=$(($msid+1)) 
 
-sout_path=`dirname $spath`
-sout_name=`basename $spath`
-sout_file=$sout_path/bakuphot.$backup_stamp.$sout_name
+[ -n "$sid" ] || {
+msid=$($TT_TOOL_TOP/tcrmgr inform -port $port  -st $host | awk '{if($1=="sid")print $2; }')
+sid=$(($msid+1)) 
+}
+
+
 mypath_top=$mypath/bakuphot_${host//./-}_${port}.$myport
-
-tcrmgr copy -port $port $host  $sout_file
 mkdir -p $mypath_top/data
-pscp $host:/$sout_file*  $mypath_top/data
-#rename
-cd $mypath_top/data
-for f in `ls bakuphot.$backup_stamp*` 
-do
-    ssname=${f##*$backup_stamp.} 
-    mv -v $f $ssname
-done
-cd -
-
-echo $backup_stamp >$mypath_top/data/rts
-
+dump_ttserver_data $port $host $mypath_top/data
 gen_ctrl $mypath_top/ctrl $sout_name $port $host $sid
-echo gen_ctrl $mypath_top/ctrl $sout_name $port $host $sid
 $mypath_top/ctrl start
 
 

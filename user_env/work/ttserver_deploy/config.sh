@@ -18,40 +18,66 @@
 #===============================================================================
 
 USER_HOME='/home/hotel'
+LOGIN_NAME=`whoami`
 TT_TOOL_TOP=/usr/local/bin
 SSH_TOOL_TOP=$USER_HOME/bin/sl/bin
 WORK_DIR=`pwd`
+WEEK_DAY=$(date +%w)
+TIME_NS=$(date +%s%N)
+TT_NOW_TIMESTAMP=`expr $TIME_NS / 1000`
+RUN_DATE=$(date)
 
-#將目標ttserver数据按周日期dump，并下载到指定目录
-dump_and_get_ttserver_data()
-{
-    port=$1
-    host=$2
-    dir=$3
-    [ -n "$host" ]   || host='localhost'
-    [ -n "$dir" ]   || dir='.'
-    weekday=`date +%w`
-    bak_keep_num=$((weekday%3))
-    spath=$(tcrmgr inform -port $port  -st $host | awk '{if($1=="path")print $2; }')
-    [ -z "$spath" ] && { echo not get db path plz check; return 1 ; }
-    dbtype=${spath##*.} # get ext 
-    sout_name=$(basename $spath)
-    sout_file=$sout_path/bakuphot.$bak_keep_num.$sout_name
-    tcrmgr copy -port $port $host  $sout_file
-    pscp $host:/$sout_file*  $dir
-    cd $dir
+TODAY_INDEX=$(($(date +%s)/86400))
+BAK_KEEP_NUM=3 #保留最近多少天的备份数据
+NOW_BACKUP_INDEX=$(($TODAY_INDEX%$BAK_KEEP_NUM)) 
 
+tt0(){
     return 0
+}
+tt1(){
+    return 1
+}
+
+
+
+check_if_exit(){
+    [ $2 $1 ] 2>/dev/null || { echo no  $2 $1 ; exit ; }
 }
 
 check_help(){
-     [ "$1" ==  "" ] && { usage ; exit; }
+    [ "$1" ==  "" ] && { usage ; exit; }
     for arg in $*
     do
         helptag=${arg//-/}
         [ "$helptag" ==  "help" ] || [ "$helptag" ==  "H" ] || [ "$helptag" ==  "?" ]  || [ "$helptag" ==  "h" ] && { usage ; exit; }  
     done
 }
+
+#將目標ttserver数据按周日期dump，到其对应数据的backup目录
+dump_ttserver_data()
+{
+    port=$1
+    host=$2
+    dir=$3
+    [ -n "$host" ]   || host='localhost'
+    spath=$($TT_TOOL_TOP/tcrmgr inform -port $port  -st $host | awk '{if($1=="path")print $2; }')
+    [ -z "$spath" ] && { echo not get db path plz check; return 1 ; }
+    dbtype=${spath##*.} # get ext 
+    sout_name=$(basename $spath)
+    sout_path=$(dirname $(dirname $spath))/backup/$NOW_BACKUP_INDEX
+    sout_file=$sout_path/$sout_name
+    ssh -n $host "mkdir -p $sout_path && echo $TT_NOW_TIMESTAMP >$sout_path/rts && echo $RUN_DATE >$sout_path/backdate"
+
+    [ $? -eq 0 ] || { echo mkdir $sout_path on $host failed ; return 1 ; }
+    $TT_TOOL_TOP/tcrmgr copy -port $port  $host  $sout_file
+    [ $? -eq 0 ] || { echo  dump failed  $TT_TOOL_TOP/tcrmgr copy -port $port $host  $sout_file ; return 1 ; }
+    if [ -d "$dir" ] ; then 
+        scp $host:$sout_path/* $dir
+        [ $? -eq 0 ] || { echo  scp failed ; return 1 ; }
+    fi
+    echo $sout_path
+}
+
 
 #檢查監聽端口是否正常
 listen_port_check()
