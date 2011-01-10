@@ -73,7 +73,8 @@ dump_ttserver_data()
     $TT_TOOL_TOP/tcrmgr copy -port $port  $host  $sout_file
     [ $? -eq 0 ] || { echo  dump failed  $TT_TOOL_TOP/tcrmgr copy -port $port $host  $sout_file ; return 1 ; }
     if [ -d "$dir" ] ; then 
-        scp $host:$sout_path/* $dir
+        mkdir -p $dir/data
+        scp $host:$sout_path/* $dir/data
         [ $? -eq 0 ] || { echo  scp failed ; return 1 ; }
         gen_ctrl $dir/ctrl $sout_name $port $host $sid
         $dir/ctrl start

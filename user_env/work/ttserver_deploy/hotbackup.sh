@@ -32,11 +32,12 @@ usage(){
 cat <<EOT
  指定目标ttserver的端口和机器 本地端口，生成实时热备，并开始
 
- $0 port [myport --default port ] [mysid --default port] [host --defalult localhost] [mypath  --default current pwd ]  
+ $0 port [host --defalult localhost] [mysid --default port] [myport --default port ]   [mypath  --default current pwd ]  
+
     port  -- source ttserver port
-    myport -- new ttserver where to create the run env
-    mysid   -- serverid default port
     host  -- source ttserver host
+    mysid   -- serverid default port
+    myport -- backup listen port
     mypath -- new ttserver where to create the run env
 EOT
 }
@@ -62,9 +63,9 @@ curday=$(date +%w)
 cursecs=$(date +%s)
 
 port=$1
-myport=$2
+host=$2
 sid=$3
-host=$4
+myport=$4
 mypath=$5
 [ ! -n "$port" ] && { echo  no port ; usage ; exit ; } 
 [ -n "$myport" ] || myport=$port
@@ -84,7 +85,6 @@ sid=$(($msid+1))
 
 
 mypath_top=$mypath/bakuphot_${host//./-}_${port}.$myport
-mkdir -p $mypath_top/data
-dump_ttserver_data $port $host $mypath_top/data $sid
+dump_ttserver_data $port $host $mypath_top $sid
 
 
