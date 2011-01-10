@@ -85,6 +85,7 @@ sid=$(($msid+1))
 
 
 mypath_top=$mypath/bakuphot_${host//./-}_${port}.$myport
+mkdir -p $mypath_top
 dump_ttserver_data $port $host $mypath_top $sid
 
 
