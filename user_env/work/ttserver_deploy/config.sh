@@ -76,8 +76,10 @@ dump_ttserver_data()
         mkdir -p $dir/data
         scp $host:$sout_path/* $dir/data
         [ $? -eq 0 ] || { echo  scp failed ; return 1 ; }
-        gen_ctrl $dir/ctrl $sout_name $port $host $sid
-        $dir/ctrl start
+        if [ -n "$sid" ] ; then
+            gen_ctrl $dir/ctrl $sout_name $port $host $sid
+            $dir/ctrl start
+        fi
     fi
     echo $sout_path
 }
