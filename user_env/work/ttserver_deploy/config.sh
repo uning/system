@@ -59,6 +59,7 @@ dump_ttserver_data()
     port=$1
     host=$2
     dir=$3
+    sid=$4
     [ -n "$host" ]   || host='localhost'
     spath=$($TT_TOOL_TOP/tcrmgr inform -port $port  -st $host | awk '{if($1=="path")print $2; }')
     [ -z "$spath" ] && { echo not get db path plz check; return 1 ; }
@@ -74,6 +75,8 @@ dump_ttserver_data()
     if [ -d "$dir" ] ; then 
         scp $host:$sout_path/* $dir
         [ $? -eq 0 ] || { echo  scp failed ; return 1 ; }
+        gen_ctrl $dir/ctrl $sout_name $port $host $sid
+        $dir/ctrl start
     fi
     echo $sout_path
 }
