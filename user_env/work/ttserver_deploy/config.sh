@@ -41,7 +41,10 @@ tt1(){
 
 
 check_if_exit(){
-    [ $2 $1 ] 2>/dev/null || { echo no  $2 $1 ; exit ; }
+    [ $2 $1 ] 2>/dev/null || { echo no  $2 $1 $3 ; exit ; }
+}
+check_nif_exit(){
+    [ $2 $1 ] 2>/dev/null && { echo no  $2 $1 $3 ; exit ; }
 }
 
 check_help(){
@@ -53,6 +56,12 @@ check_help(){
     done
 }
 
+
+#从冷备份恢复数据
+restore_tt(){
+    :
+}
+
 #將目標ttserver数据按周日期dump，到其对应数据的backup目录
 dump_ttserver_data()
 {
@@ -61,27 +70,45 @@ dump_ttserver_data()
     dir=$3
     sid=$4
     [ -n "$host" ]   || host='localhost'
+
+    need_remote=1
+    if [ "$host" == "localhost" ]  || [ "$host" == "127.0.0.1" ] ; then
+        need_remote=0
+    fi
+
+
     spath=$($TT_TOOL_TOP/tcrmgr inform -port $port  -st $host | awk '{if($1=="path")print $2; }')
     [ -z "$spath" ] && { echo not get db path plz check; return 1 ; }
     dbtype=${spath##*.} # get ext 
     sout_name=$(basename $spath)
-    sout_path=$(dirname $(dirname $spath))/backup/$NOW_BACKUP_INDEX
+    sdata_dir=$(dirname $(dirname $spath))
+    sout_path=$sdata_dir/backup/$NOW_BACKUP_INDEX
     sout_file=$sout_path/$sout_name
-    ssh -n $host "mkdir -p $sout_path && echo $TT_NOW_TIMESTAMP >$sout_path/rts && echo $RUN_DATE >$sout_path/backdate"
 
-    [ $? -eq 0 ] || { echo mkdir $sout_path on $host failed ; return 1 ; }
-    $TT_TOOL_TOP/tcrmgr copy -port $port  $host  $sout_file
-    [ $? -eq 0 ] || { echo  dump failed  $TT_TOOL_TOP/tcrmgr copy -port $port $host  $sout_file ; return 1 ; }
+    scripts_dir=$(dirname $sdata_dir)
+
+    if [ $need_remote -eq 1 ] ; then
+        scp $my_ab_path/config.sh $host:$scripts_dir/ 
+        scp $my_ab_path/syc_backup.sh $host:$scripts_dir/ 
+        [ $? -eq 0 ] || { echo cp scripts to $host failed ; return 1 ; }
+    fi
+        $TT_TOOL_TOP/tcrmgr copy -port $port  $host  @$scripts_dir/syc_backup.sh
+        [ $? -eq 0 ] || { echo  dump failed  $TT_TOOL_TOP/tcrmgr copy -port $port $host  @$scripts_dir/syc_backup.sh ; return 1 ; }
+
     if [ -d "$dir" ] ; then 
         mkdir -p $dir/data
-        scp $host:$sout_path/* $dir/data
+        if [ $need_remote -eq 1 ] ; then
+            scp $host:$sout_path/* $dir/data
+        else
+            cp -v $sout_path/* $dir/data
+        fi
+
         [ $? -eq 0 ] || { echo  scp failed ; return 1 ; }
         if [ -n "$sid" ] ; then
             gen_ctrl $dir/ctrl $sout_name $port $host $sid
             $dir/ctrl start
         fi
     fi
-    echo $sout_path
 }
 
 
