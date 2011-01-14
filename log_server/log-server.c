@@ -1,4 +1,7 @@
-
+/**
+ * 記錄http請求，日誌用
+ *
+ */
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/queue.h>
@@ -31,22 +34,24 @@
 #include <event2/util.h>
 #include <event2/keyvalq_struct.h>
 
-#define VERSION "1"
+#define VERSION "0.1"
 
 /* 全局设置 */
-FILE* g_logfd ; /*日誌文件句柄*/
-char  g_dataname[1024];
-char* g_pidfile; /* PID文件 */
-char* g_listen = "0.0.0.0";
-char* g_pidfile = "./log_server.pid";
-char* g_datapath = "./data";
-int   g_port = 1600;
-int   g_syncinterval; /* 同步更新内容到磁盘的间隔时间 */
-int   g_timeout = 3; /* 单位：秒 */
-int   g_syncinterval = 5; /* 单位：秒 */
-int   g_cur_wday = -1;//當前日期，周几
-bool  g_daemon = false;
-
+static FILE *g_fp_data,*g_fp_log ; /*日誌文件句柄*/
+static char  g_dataname[1024],g_logname[1024];
+static char *g_pidfile; /* PID文件 */
+static char *g_listen = "0.0.0.0";
+static char *g_pidfile = "./log_server.pid";
+static char *g_datapath = "./data";
+static int   g_port = 1600;
+static int   g_syncinterval; /* 同步更新内容到磁盘的间隔时间 */
+static int   g_timeout = 3; /* 单位：秒 */
+static int   g_syncinterval = 5; /* 单位：秒 */
+static int   g_cur_wday = -1;//當前日期，周几
+static int   g_record_num =  0;//當前記錄總數
+static int   g_request_num = 0;//當前記錄總數
+static time_t   g_start_time = 0;//當前記錄總數
+static bool  g_daemon = false;
 
 /* 创建多层目录的函数 */
 void create_multilayer_dir( char *muldir )
@@ -76,8 +81,8 @@ void create_multilayer_dir( char *muldir )
 
 static void show_help(void)
 {
-    char *b = "--------------------------------------------------------------------------------------------------\n"
-        "HTTP Log Service - log_server v" VERSION " (, 2010)\n\n"
+    static char *b = "--------------------------------------------------------------------------------------------------\n"
+        "HTTP Log Service - log_server v" VERSION " ("__DATE__" "__TIME__" "__FILE__ ")\n\n"
         "A web server just log  request\n"
         "\n"
         "-l <ip_addr>  interface to listen on, default is 0.0.0.0\n"
@@ -96,28 +101,10 @@ static void show_help(void)
 }
 
 
-/* 修改定时更新内存内容到磁盘的间隔时间，返回间隔时间（秒） */
-static int log_server_synctime(int log_server_input_num)
-{
-    if (log_server_input_num >= 1) {
-        g_syncinterval = log_server_input_num;
-    }
-    return g_syncinterval;
-}
 
 
 
 
-/* 信号处理 */
-static void kill_signal(/*const int sig*/) {
-    /* 删除PID文件 */
-    remove(g_pidfile);
-    if(g_logfd){
-        fflush(g_logfd);
-        fclose(g_logfd);
-    }
-    exit(0);
-}
 
 /* 
  * 切換log file
@@ -126,13 +113,13 @@ static void reopen_log_fd(struct tm *p)
 {
     memset(g_dataname, '\0', sizeof(g_dataname));
     sprintf(g_dataname, "%s/log.%d-%02d-%02d", g_datapath,(1900+p->tm_year),(1+p->tm_mon),p->tm_mday);
-    if(g_logfd){
-        fflush(g_logfd);
-        fclose(g_logfd);
-        g_logfd=NULL;
+    if(g_fp_data){
+        fflush(g_fp_data);
+        fclose(g_fp_data);
+        g_fp_data=NULL;
     }
-    g_logfd=fopen(g_dataname,"a+");
-    if(NULL == g_logfd ){
+    g_fp_data=fopen(g_dataname,"a+");
+    if(NULL == g_fp_data ){
         fprintf(stderr, "open file  for append error: %s\n",g_dataname);		
         perror("open file :");
         exit(1);
@@ -153,21 +140,45 @@ static void log_handler(struct evhttp_request *req, void *arg)
         reopen_log_fd(p);
     }
 
-    if(g_logfd!=NULL){
+    if(g_fp_data!=NULL){
+        g_record_num += 1;
         struct evbuffer *buf;
         char cbuf[12800];
         int n;
-        fprintf(g_logfd,"%s\t%d\t",evhttp_request_get_uri(req),timep);
+        fprintf(g_fp_data,"%s\t%d\t",evhttp_request_get_uri(req),timep);
         buf = evhttp_request_get_input_buffer(req);
         while (evbuffer_get_length(buf)) {
             n = evbuffer_remove(buf, cbuf, sizeof(buf)-1);
-            fwrite(cbuf, 1, n, g_logfd);
+            fwrite(cbuf, 1, n, g_fp_data);
         }
         cbuf[0]='\n';
-        fwrite(cbuf, 1,1 , g_logfd);
+        fwrite(cbuf, 1,1 , g_fp_data);
         evhttp_send_reply(req, 200, "OK", NULL);
     }else
         evhttp_send_reply(req, 200, "KO", NULL);
+}
+/**
+ * 記錄總量
+ *
+ */
+static void status_cb(struct evhttp_request *req, void *arg)
+{
+    static char *wday[]={"SUN","MON","TUE","WES","THUR","FRI","SAT"};
+    struct evbuffer *evb;
+	evb = evbuffer_new();
+    evhttp_add_header(evhttp_request_get_output_headers(req),
+            "Content-Type", "text/html");
+    evbuffer_add_printf(evb,"<pre>");
+    evbuffer_add_printf(evb,"record num: %d\n",g_record_num);
+    time_t timep;
+    struct tm *p;
+    time(&timep);
+    p=localtime(&timep);  /* 获取当前时间 */
+    evbuffer_add_printf(evb,"time: %d %02d %02d %s %02d:%02d:%02d    %d\n",(1900+p->tm_year),(1+p->tm_mon),p->tm_mday,wday[p->tm_wday],p->tm_hour,p->tm_min,p->tm_sec,timep);
+    evbuffer_add_printf(evb,"running : %d\n",timep-g_start_time);
+    evhttp_send_reply(req, 200, "OK",evb);
+	evbuffer_free(evb);
+
 }
 
 /* 测试dump */
@@ -177,6 +188,9 @@ static void dump_request_cb(struct evhttp_request *req, void *arg)
     struct evkeyvalq *headers;
     struct evkeyval *header;
     struct evbuffer *buf;
+    struct evbuffer *evb;
+
+	evb = evbuffer_new();
 
     switch (evhttp_request_get_command(req)) {
         case EVHTTP_REQ_GET: cmdtype = "GET"; break;
@@ -190,123 +204,83 @@ static void dump_request_cb(struct evhttp_request *req, void *arg)
         case EVHTTP_REQ_PATCH: cmdtype = "PATCH"; break;
         default: cmdtype = "unknown"; break;
     }
+    evbuffer_add_printf(evb,"<pre>");
     printf("Received a %s request for %s\nHeaders:\n",
             cmdtype, evhttp_request_get_uri(req));
 
+    evbuffer_add_printf(evb,"Received a %s request for %s\nHeaders:\n",
+            cmdtype, evhttp_request_get_uri(req));
     headers = evhttp_request_get_input_headers(req);
     for (header = headers->tqh_first; header;
             header = header->next.tqe_next) {
         printf("  %s: %s\n", header->key, header->value);
+        evbuffer_add_printf(evb,"  %s: %s\n", header->key, header->value);
     }
 
     printf("remote_host: %s\n", evhttp_request_get_host(req));
+    evbuffer_add_printf(evb,"remote_host: %s\n", evhttp_request_get_host(req));
     buf = evhttp_request_get_input_buffer(req);
     puts("Input data: <<<");
+    evbuffer_add_printf(evb,"Input data: <<<");
     while (evbuffer_get_length(buf)) {
         int n;
-        char cbuf[128];
+        char cbuf[1280];
         n = evbuffer_remove(buf, cbuf, sizeof(buf)-1);
         fwrite(cbuf, 1, n, stdout);
+        evbuffer_add_printf(evb,cbuf);
     }
     puts(">>>");
-    evhttp_send_reply(req, 200, "OK", NULL);
+    evbuffer_add_printf(evb,">>>");
+
+    evhttp_add_header(evhttp_request_get_output_headers(req),
+            "Content-Type", "text/html");
+    evhttp_send_reply(req, 200, "OK",evb);
+	evbuffer_free(evb);
 }
 
 /* 定时信号处理，定时将内存中的内容写入磁盘 */
 static void sync_signal(const int sig) {
-    if(g_logfd){
-        fflush(g_logfd);
+    if(g_fp_data){
+        fflush(g_fp_data);
     }
     alarm(g_syncinterval); //间隔g_syncinterval秒发一次信号
 }
-
-
-int main(int argc, char **argv)
+/* 修改定时更新内存内容到磁盘的间隔时间，返回间隔时间（秒） */
+static int log_server_synctime(int log_server_input_num)
 {
-    int c;
-    /* 默认参数设置 */
-
-    /* process arguments */
-    while ((c = getopt(argc, argv, "l:p:x:t:s:c:m:i:dh")) != -1) {
-        switch (c) {
-            case 'l':
-                g_listen = strdup(optarg);
-                break;
-            case 'p':
-                g_port = atoi(optarg);
-                break;
-            case 'x':
-                g_datapath = strdup(optarg); /* log_server数据库文件存放路径 */
-                break;
-            case 't':
-                g_timeout = atoi(optarg);
-                break;		
-            case 's':
-                g_syncinterval = atoi(optarg);
-                break;			
-            case 'i':
-                g_pidfile = strdup(optarg);
-                break;			
-            case 'd':
-                g_daemon = true;
-                break;
-            case 'h':
-            default:
-                show_help();
-                return 1;
-        }
+    if (log_server_input_num >= 1){
+        g_syncinterval = log_server_input_num;
     }
-
-    /* 判断是否加了必填参数 -x */
-    if (g_datapath == NULL) {
-        show_help();
-        fprintf(stderr, "Attention: Please use the  argument: -x <path>\n\n");		
-        exit(1);
+    return g_syncinterval;
+}
+/* 信号处理 */
+int g_srv_shutdown = 0;
+static void kill_signal(/*const int sig*/) {
+    /* 删除PID文件 */
+    int g_srv_shutdown = 1;
+    remove(g_pidfile);
+    if(g_fp_data){
+        fflush(g_fp_data);
+        fclose(g_fp_data);
     }
-    /* for mkdir */
-    if (access(g_datapath, W_OK) != 0) { /* 如果目录不可写 */
-        if (access(g_datapath, R_OK) == 0) { /* 如果目录可读 */
-            chmod(g_datapath, S_IWOTH); /* 设置其他用户具可写入权限 */
-        } else { /* 如果不存在该目录，则创建 */
-            create_multilayer_dir(g_datapath);
-        }
-
-        if (access(g_datapath, W_OK) != 0) { /* 如果目录不可写 */
-            fprintf(stderr, "log_server database directory not writable\n");
-        }
-    }
+    exit(0);
+}
 
 
-
-
-    /* 如果加了-d参数，以守护进程运行 */
-    if (g_daemon == true){
-        pid_t pid;
-
-        /* Fork off the parent process */       
-        pid = fork();
-        if (pid < 0) {
-            exit(EXIT_FAILURE);
-        }
-        /* If we got a good PID, then
-           we can exit the parent process. */
-        if (pid > 0) {
-            exit(EXIT_SUCCESS);
-        }
-        /*
-        close(0);
-        close(1);
-        close(2);
-         */
-    }
-
+/*
+ * 主程序
+ *
+ */
+static int main_process()
+{
     time_t timep;
     struct tm *p;
     time(&timep);
     p=localtime(&timep);
     g_cur_wday=p->tm_wday;
     reopen_log_fd(p);
-    if(NULL == g_logfd ){
+    g_start_time=timep;
+    if(NULL == g_fp_data ){
         fprintf(stderr, "open file  for append error: %s\n",g_dataname);		
         perror("open file :");
         exit(1);
@@ -316,12 +290,14 @@ int main(int argc, char **argv)
     FILE *fp_pidfile;
     fp_pidfile = fopen(g_pidfile, "w");
     fprintf(fp_pidfile, "%d\n", getpid());
+    fprintf(stderr, "Pid:%d\n", getpid());
     fclose(fp_pidfile);
 
     /* 忽略Broken Pipe信号 */
     signal(SIGPIPE, SIG_IGN);
 
     /* 处理kill信号 */
+    signal (SIGINT, kill_signal);
     signal (SIGINT, kill_signal);
     signal (SIGKILL, kill_signal);
     signal (SIGQUIT, kill_signal);
@@ -387,20 +363,143 @@ int main(int argc, char **argv)
         addr = evutil_inet_ntop(ss.ss_family, inaddr, addrbuf,
                 sizeof(addrbuf));
         if (addr) {
-            printf("Listening on %s:%d\n", addr, got_port);
-            printf("http://%s:%d\n",addr,got_port);
+            fprintf(stderr,"Listening on %s:%d\n", addr, got_port);
+            fprintf(stderr,"http://%s:%d\n",addr,got_port);
         } else {
             fprintf(stderr, "evutil_inet_ntop failed\n");
             return 1;
         }
     }
 	evhttp_set_cb(http, "/dump", dump_request_cb, NULL);
+	evhttp_set_cb(http, "/status", status_cb, NULL);
     /* We want to accept arbitrary requests, so we need to set a "generic"
      * cb.  We can also add callbacks for specific paths. */
     evhttp_set_gencb(http, log_handler, NULL);
 
     event_base_dispatch(base);
 
+    /* Not reached in this code as it is now. */
+    //evhttp_free(http);
+
+}
+
+
+int main(int argc, char **argv)
+{
+    int c;
+    /* 默认参数设置 */
+
+    /* process arguments */
+    while ((c = getopt(argc, argv, "l:p:x:t:s:c:m:i:dh")) != -1) {
+        switch (c) {
+            case 'l':
+                g_listen = strdup(optarg);
+                break;
+            case 'p':
+                g_port = atoi(optarg);
+                break;
+            case 'x':
+                g_datapath = strdup(optarg); /* log_server数据库文件存放路径 */
+                break;
+            case 't':
+                g_timeout = atoi(optarg);
+                break;		
+            case 's':
+                g_syncinterval = atoi(optarg);
+                break;			
+            case 'i':
+                g_pidfile = strdup(optarg);
+                break;			
+            case 'd':
+                g_daemon = true;
+                break;
+            case 'h':
+            default:
+                show_help();
+                return 1;
+        }
+    }
+
+    /* for mkdir */
+    if (access(g_datapath, W_OK) != 0) { /* 如果目录不可写 */
+        if (access(g_datapath, R_OK) == 0) { /* 如果目录可读 */
+            chmod(g_datapath, S_IWOTH); /* 设置其他用户具可写入权限 */
+        } else { /* 如果不存在该目录，则创建 */
+            create_multilayer_dir(g_datapath);
+        }
+
+        if (access(g_datapath, W_OK) != 0) { /* 如果目录不可写 */
+            fprintf(stderr, "log_server data directory not writable\n");
+            exit(1);
+        }
+    }
+
+    memset(g_logname, '\0', sizeof(g_dataname));
+    sprintf(g_logname, "%s/err.log_server", g_datapath);
+    g_fp_log=fopen(g_logname,"a+"); 
+    if(NULL == g_fp_log ){
+        fprintf(stderr, "open file  for append error %s : ",g_logname);		
+        perror(":");
+        exit(1);
+    }
+
+
+
+
+    pid_t pid = -1;
+    /* 如果加了-d参数，以守护进程运行 */
+    if (g_daemon == true){
+        if((pid = fork()) < 0)
+            return -1;
+        else if(pid != 0)
+            exit(0);//exit main
+
+        close(0);
+        close(1);
+        close(2);
+        freopen(g_logname,"a+",stdout);
+        freopen(g_logname,"a+",stderr);
+        freopen(g_logname,"r",stdin);
+
+    #if 0
+        pid = -1;
+        //fork a monitor process
+        int is_child=0;
+        while(!g_srv_shutdown && !is_child){
+            if(pid<0){
+                /* Fork off the parent process */       
+                pid = fork();
+                if (pid < 0) {
+                    perror("fork error sleep 1 s retry");
+                    sleep(1000);
+                    continue;
+                }
+            }
+            /* If we got a good PID,parent process just monitor */
+            if (pid > 0) {
+                int status;
+                if (-1 != wait(&status)){
+                    fprintf(g_fp_log,"child exit restart it");
+                    pid = -1;
+                }else {
+                    switch (errno) {
+                        case EINTR:
+                               break;
+                        default:
+                               break;
+                    }
+                }
+                if(g_srv_shutdown)
+                    kill(pid);
+
+            }else{
+                //child process
+                is_child =  true ;
+            }
+        }
+#endif
+    }
+    main_process();
     /* Not reached in this code as it is now. */
     //evhttp_free(http);
 
