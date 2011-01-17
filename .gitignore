@@ -5,3 +5,5 @@ libevent-2.0.10-stable
 t
 tt
 log-server
+data
+pid
