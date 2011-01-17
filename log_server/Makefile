@@ -17,7 +17,7 @@ log-server: log-server.c
 
 install: log-server log-server.c
 	mkdir -p $(INSTALL_DIR)
-	cp log-server $(INSTALL_DIR)
+	cp -f log-server $(INSTALL_DIR)
 	
 	
 clean: 

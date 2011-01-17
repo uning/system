@@ -34,14 +34,16 @@
 #include <event2/util.h>
 #include <event2/keyvalq_struct.h>
 
-#define VERSION "0.1"
+#define VERSION "0.2"
+#define PROGNAME "log-server"
 
 /* 全局设置 */
 static FILE *g_fp_data,*g_fp_log ; /*日誌文件句柄*/
 static char  g_dataname[1024],g_logname[1024];
 static char *g_pidfile; /* PID文件 */
-static char *g_listen = "0.0.0.0";
-static char *g_pidfile = "./log_server.pid";
+static char *g_progname; /*程序名*/
+static char *g_listen_ip = "0.0.0.0";
+static char *g_pidfile = "./pid";
 static char *g_datapath = "./data";
 static int   g_port = 1600;
 static int   g_syncinterval; /* 同步更新内容到磁盘的间隔时间 */
@@ -50,8 +52,9 @@ static int   g_syncinterval = 5; /* 单位：秒 */
 static int   g_cur_wday = -1;//當前日期，周几
 static int   g_record_num =  0;//當前記錄總數
 static int   g_request_num = 0;//當前記錄總數
-static time_t   g_start_time = 0;//當前記錄總數
+static time_t   g_start_time = 0;//啟動時間
 static bool  g_daemon = false;
+
 
 /* 创建多层目录的函数 */
 void create_multilayer_dir( char *muldir )
@@ -82,22 +85,22 @@ void create_multilayer_dir( char *muldir )
 static void show_help(void)
 {
     static char *b = "--------------------------------------------------------------------------------------------------\n"
-        "HTTP Log Service - log_server v" VERSION " ("__DATE__" "__TIME__" "__FILE__ ")\n\n"
+        "HTTP Log Service - "PROGNAME" v" VERSION " (Build at "__DATE__" "__TIME__" "__FILE__ ")\n\n"
         "A web server just log  request\n"
         "\n"
-        "-l <ip_addr>  interface to listen on, default is 0.0.0.0\n"
-        "-p <num>      TCP port number to listen on (default: 1600)\n"
-        "-x <path>     database directory (example: ./data)\n"
-        "-t <second>   timeout for an http request (default: 3)\n"
-        "-i <file>     save PID in <file> (default: ./log_server.pid)\n"
+        "-l <ip_addr>  interface to listen on, default is %s\n"
+        "-p <num>      TCP port number to listen on (default: %d)\n"
+        "-x <datafile-path>     datafile directory (example: %s)\n"
+        "-t <timeout-second>   timeout for an http request (default: %d)\n"
+        "-i <pid-file>     save PID in <file> (default: %s)\n"
         "-d            run as a daemon\n"
-        "-h            print this help and exit\n\n"
-        "Use command \"killall log_server\", \"pkill log_server\" and \"kill `cat /tmp/log_server.pid`\" to stop log_server.\n"
-        "Please note that don't use the command \"pkill -9 log_server\" and \"kill -9 PID of log_server\"!\n"
+        "-h | -? | --help         print this help and exit\n\n"
+        "Use command \"killall "PROGNAME"\", \"kill "PROGNAME"\" and \"kill `cat pid-file`\" to stop "PROGNAME".\n"
+        "Please note that don't use the command \"pkill -9 "PROGNAME"\" and \"kill -9 PID of "PROGNAME"\"!\n"
         "\n"
         "--------------------------------------------------------------------------------------------------\n"
         "\n";
-    fprintf(stderr, b, strlen(b));
+    fprintf(stderr, b,g_listen_ip,g_port,g_datapath,g_timeout,g_pidfile, strlen(b));
 }
 
 
@@ -167,14 +170,13 @@ static void status_cb(struct evhttp_request *req, void *arg)
     struct evbuffer *evb;
 	evb = evbuffer_new();
     evhttp_add_header(evhttp_request_get_output_headers(req),
-            "Content-Type", "text/html");
-    evbuffer_add_printf(evb,"<pre>");
+            "Content-Type", "text/plain");
     evbuffer_add_printf(evb,"record num: %d\n",g_record_num);
     time_t timep;
     struct tm *p;
     time(&timep);
     p=localtime(&timep);  /* 获取当前时间 */
-    evbuffer_add_printf(evb,"time: %d %02d %02d %s %02d:%02d:%02d    %d\n",(1900+p->tm_year),(1+p->tm_mon),p->tm_mday,wday[p->tm_wday],p->tm_hour,p->tm_min,p->tm_sec,timep);
+    evbuffer_add_printf(evb,"time: %s   %d %02d %02d %s %02d:%02d:%02d\n",timep,(1900+p->tm_year),(1+p->tm_mon),p->tm_mday,wday[p->tm_wday],p->tm_hour,p->tm_min,p->tm_sec);
     evbuffer_add_printf(evb,"running : %d\n",timep-g_start_time);
     evhttp_send_reply(req, 200, "OK",evb);
 	evbuffer_free(evb);
@@ -328,9 +330,9 @@ static int main_process()
 
 
     /* Now we tell the evhttp what port to listen on */
-    handle = evhttp_bind_socket_with_handle(http, g_listen, g_port);
+    handle = evhttp_bind_socket_with_handle(http, g_listen_ip, g_port);
     if (handle == NULL) {
-        fprintf(stderr, "Error: Unable to listen on %s:%d\n\n", g_listen, g_port);		
+        fprintf(stderr, "Error: Unable to listen on %s:%d\n\n", g_listen_ip, g_port);		
         exit(1);		
     }
 
@@ -388,12 +390,13 @@ int main(int argc, char **argv)
 {
     int c;
     /* 默认参数设置 */
+    g_progname = argv[0];
 
     /* process arguments */
     while ((c = getopt(argc, argv, "l:p:x:t:s:c:m:i:dh")) != -1) {
         switch (c) {
             case 'l':
-                g_listen = strdup(optarg);
+                g_listen_ip = strdup(optarg);
                 break;
             case 'p':
                 g_port = atoi(optarg);
@@ -414,6 +417,8 @@ int main(int argc, char **argv)
                 g_daemon = true;
                 break;
             case 'h':
+            case '?':
+            case '-':
             default:
                 show_help();
                 return 1;
