@@ -65,6 +65,12 @@ EOT
 fi
 
 
+#不同平臺需要做相应修改
+get_machine_info()
+{
+    hostname=$(hostname)
+    hostip=$(/sbin/ifconfig)
+}
 
 
 

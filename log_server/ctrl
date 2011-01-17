@@ -1,0 +1,134 @@
+#! /bin/sh
+
+#----------------------------------------------------------------
+# Startup script for log-server
+#----------------------------------------------------------------
+
+## 
+##
+
+
+
+
+
+progname="log-server"
+cmd='/home/hotel/work/sys/log-server/log-server'
+page_root=`pwd`/`dirname $0`''
+my_ab_path=`cd $page_root && pwd`
+my_name=`basename $my_ab_path`
+port=$(echo $my_name | awk -F. '{print $2}' | sed s/[^0-9]//g)
+
+
+
+
+basedir=$my_ab_path
+pidfile="$basedir/pid"
+datadir=$basedir/data
+
+
+maxcon="65535"
+retval=0
+
+
+
+# setting environment variables
+LANG=C
+LC_ALL=C
+PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
+export LANG LC_ALL PATH
+
+
+status(){
+    wget http://localhost:$port/status -O - -T 1 -t 1 2>/dev/null
+}
+
+
+start(){
+  echo  Starting the  $progname
+  if [ -z "$datadir" ] || [ -z "$port" ] || [ -z "$pidfile" ]  ; then
+      printf 'Invalid configuration\n'
+      retval=1
+  fi
+  if [ -f "$pidfile" ]  ; then
+      echo  Exists pid `cat $pidfile`
+      return 1
+  fi
+  $cmd -d -x $datadir -i $pidfile -p $port
+  if [ "$?" -eq 0 ] ; then
+      printf 'Done\n'
+      retval=0
+  else
+      printf 'The server could not started\n'
+      retval=1
+  fi
+  return $retval
+}
+
+
+# stop the server
+stop(){
+  printf 'Stopping the server \n'
+  if [ -f "$pidfile" ] ; then
+    pid=`cat "$pidfile"`
+    printf "Sending the terminal signal to the process: %s\n" "$pid"
+    kill -TERM "$pid"
+    c=0
+    while true ; do
+      sleep 0.1
+      if [ -f "$pidfile" ] ; then
+        c=`expr $c + 1`
+        if [ "$c" -ge 100 ] ; then
+          printf 'Hanging process: %d\n' "$pid"
+          retval=1
+          break
+        fi
+      else
+        printf 'Done\n'
+        break
+      fi
+    done
+  else
+    printf 'No process found\n'
+    retval=1
+  fi
+}
+
+
+# check permission
+if [ -d "$basedir" ] && ! touch "$basedir/$$" >/dev/null 2>&1
+then
+  printf 'Permission denied\n'
+  exit 1
+fi
+rm -f "$basedir/$$"
+
+
+# dispatch the command
+case "$1" in
+start)
+  start
+  ;;
+stop)
+  stop
+  ;;
+restart)
+  stop
+  start
+  ;;
+status)
+  status
+  ;;
+*)
+  printf 'Usage: %s {start|stop|restart|status}\n' "$0"
+  exit 1
+  ;;
+esac
+
+
+# exit
+exit "$retval"
+
+
+
+# END OF FILE
+
