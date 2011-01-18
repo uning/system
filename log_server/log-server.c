@@ -182,7 +182,7 @@ static void status_cb(struct evhttp_request *req, void *arg)
     struct tm *p;
     time(&timep);
     p=localtime(&timep);  /* 获取当前时间 */
-    evbuffer_add_printf(evb,"time: %s   %d %02d %02d %s %02d:%02d:%02d\n",timep,(1900+p->tm_year),(1+p->tm_mon),p->tm_mday,wday[p->tm_wday],p->tm_hour,p->tm_min,p->tm_sec);
+    evbuffer_add_printf(evb,"time: %d   %d %02d %02d %s %02d:%02d:%02d\n",timep,(1900+p->tm_year),(1+p->tm_mon),p->tm_mday,wday[p->tm_wday],p->tm_hour,p->tm_min,p->tm_sec);
     evbuffer_add_printf(evb,"running : %d\n",timep-g_start_time);
     evhttp_send_reply(req, 200, "OK",evb);
 	evbuffer_free(evb);
