@@ -17,9 +17,17 @@
 #      REVISION:  ---
 #===============================================================================
 
+
+
 USER_HOME='/home/hotel'
-LOGIN_NAME=`whoami`
 TT_TOOL_TOP=/usr/local/bin
+LOGIN_NAME=`whoami`
+
+SSH_CMD=ssh
+SCP_CMD=scp
+
+
+
 SSH_TOOL_TOP=$USER_HOME/bin/sl/bin
 WORK_DIR=`pwd`
 WEEK_DAY=$(date +%w)
@@ -88,8 +96,8 @@ dump_ttserver_data()
     scripts_dir=$(dirname $sdata_dir)
 
     if [ $need_remote -eq 1 ] ; then
-        scp $my_ab_path/config.sh $host:$scripts_dir/ 
-        scp $my_ab_path/syc_backup.sh $host:$scripts_dir/ 
+        $SCP_CMD $my_ab_path/config.sh $host:$scripts_dir/ 
+        $SCP_CMD $my_ab_path/syc_backup.sh $host:$scripts_dir/ 
         [ $? -eq 0 ] || { echo cp scripts to $host failed ; return 1 ; }
     fi
         $TT_TOOL_TOP/tcrmgr copy -port $port  $host  @$scripts_dir/syc_backup.sh
@@ -98,7 +106,7 @@ dump_ttserver_data()
     if [ -d "$dir" ] ; then 
         mkdir -p $dir/data
         if [ $need_remote -eq 1 ] ; then
-            scp $host:$sout_path/* $dir/data
+            $SCP_CMD $host:$sout_path/* $dir/data
         else
             cp -v $sout_path/* $dir/data
         fi

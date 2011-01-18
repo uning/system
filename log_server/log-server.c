@@ -155,7 +155,13 @@ static void log_handler(struct evhttp_request *req, void *arg)
             fwrite(cbuf, 1, n, g_fp_data);
         }
         cbuf[0]='\n';
-        fwrite(cbuf, 1,1 , g_fp_data);
+        n=fwrite(cbuf, 1,1 , g_fp_data);
+        if(n<1){
+            fprintf(stderr, "open file  for append error: %s\n",g_dataname);		
+            perror("write file :");
+            reopen_log_fd(p);
+
+        }
         evhttp_send_reply(req, 200, "OK", NULL);
     }else
         evhttp_send_reply(req, 200, "KO", NULL);
