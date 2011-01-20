@@ -17,7 +17,7 @@ $data['m']=100;
 $data['s']="dfdsl\n \r dfdf";
 $data['dff']='dfd';
 record_time($st);
-$num = 10;
+$num = 1;
 for($i=0;$i < $num ; $i+=1){
     $data['tm']=time();
     $data['indx']=$i;

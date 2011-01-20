@@ -34,7 +34,7 @@
 #include <event2/util.h>
 #include <event2/keyvalq_struct.h>
 
-#define VERSION "0.2"
+#define VERSION "0.21"
 #define PROGNAME "log-server"
 
 /* 全局设置 */
@@ -294,12 +294,6 @@ static int main_process()
         exit(1);
     }
 
-    /* 将进程号写入PID文件 */
-    FILE *fp_pidfile;
-    fp_pidfile = fopen(g_pidfile, "w");
-    fprintf(fp_pidfile, "%d\n", getpid());
-    fprintf(stderr, "Pid:%d\n", getpid());
-    fclose(fp_pidfile);
 
     /* 忽略Broken Pipe信号 */
     signal(SIGPIPE, SIG_IGN);
@@ -380,6 +374,24 @@ static int main_process()
     }
 	evhttp_set_cb(http, "/dump", dump_request_cb, NULL);
 	evhttp_set_cb(http, "/status", status_cb, NULL);
+
+
+    /* 将进程号写入PID文件 */
+    FILE *fp_pidfile;
+    fp_pidfile = fopen(g_pidfile, "w");
+    fprintf(fp_pidfile, "%d\n", getpid());
+    fprintf(stderr, "Pid:%d\n", getpid());
+    fclose(fp_pidfile);
+
+    if(g_daemon){
+        close(0);
+        close(1);
+        close(2);
+        freopen(g_logname,"a+",stdout);
+        freopen(g_logname,"a+",stderr);
+        freopen(g_logname,"r",stdin);
+
+    }
     /* We want to accept arbitrary requests, so we need to set a "generic"
      * cb.  We can also add callbacks for specific paths. */
     evhttp_set_gencb(http, log_handler, NULL);
@@ -460,17 +472,12 @@ int main(int argc, char **argv)
     pid_t pid = -1;
     /* 如果加了-d参数，以守护进程运行 */
     if (g_daemon == true){
-        if((pid = fork()) < 0)
+        if((pid = fork()) < 0){
+            perror("fork error:");
             return -1;
+        }
         else if(pid != 0)
             exit(0);//exit main
-
-        close(0);
-        close(1);
-        close(2);
-        freopen(g_logname,"a+",stdout);
-        freopen(g_logname,"a+",stderr);
-        freopen(g_logname,"r",stdin);
 
     #if 0
         pid = -1;
