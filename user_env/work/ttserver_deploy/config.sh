@@ -147,7 +147,7 @@ gen_ctrl()
 ## 需要修改，对于主库，启动优化参数,名称不能含有数字
 ## 从库需要主库的ip port
 ##
-dbconfig="$dbfname#lmemb=1024#nmemb=2048#bnum=2000000#opts=l#rcnum=1000000#idx=pid"
+dbconfig="$dbfname#lmemb=1024#nmemb=2048#bnum=2000000#opts=l#rcnum=1000000#idx=pid#xmsiz=1000000000"
 runopts="-ld"  #-le only error; -ld debug
 mhost=$mhost
 mport=$mport

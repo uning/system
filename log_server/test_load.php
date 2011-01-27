@@ -21,6 +21,6 @@ $num = 1;
 for($i=0;$i < $num ; $i+=1){
     $data['tm']=time();
     $data['indx']=$i;
-    StatClient::record('127.0.0.1','1600',$data);
+    StatClient::record($data);
 }
 record_time($st,'put '.$num);
