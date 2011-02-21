@@ -141,9 +141,11 @@ start_prog()
     do
         ip=${M_IPS[$i]};
         loc=${M_LOCS[$i]};
-        tag=$ip${loc////__}
+        tag=${ip}${loc////__}
         my_out_dir=$OUT_DIR/$tag
+        rm -rf $my_out_dir
         mkdir -p $my_out_dir
+        write_std :start_prog:$ip $loc
         ssh -n $ip "cd $loc && nohup ./start.sh >out &"
         continue 
         #not check 
@@ -172,6 +174,7 @@ summerize_start()
 #获取结果数据
 check_result()
 {
+    rm -f $PROG_ADIR/flag.result
     incomplete_num=0
     error_num=0
     for ((i=0;i<$MACHINE_NUM;i++))
@@ -191,6 +194,9 @@ check_result()
         fi
 
         scp $ip:$loc/flag.* $my_out_dir 
+
+        write_std scp $ip:$loc/flag.* $my_out_dir 
+        ls $my_out_dir -lh
         # [ $? -eq 0 ] || { date > $OUT_DIR/error.start }
 
         #没有启动

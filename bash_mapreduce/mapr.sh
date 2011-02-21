@@ -37,7 +37,7 @@ MY_NAME=`basename $MY_ABSOLUTE_PATH`
 
 usage(){
 cat <<EOT
-  $0 install|start|collect|help|sum PROG_DIR work_run_maxtime  
+  $0 PROG_DIR install|start|collect|help|sum  work_run_maxtime  
     install -- 分发代码
     start   -- 启动
     collect -- 收集结果
@@ -50,7 +50,7 @@ EOT
 check_help $*
 
 
-PROG_DIR=$2
+PROG_DIR=$1
 RUN_TIME=$3
 [ ! -d "$PROG_DIR" ] && { echo  no PROG_DIR get; exit ; }
 check_if_exit $PROG_DIR/summery.sh  -x  "no summery script or can't execute"
@@ -62,11 +62,9 @@ PROG_ADIR=`cd $PROG_DIR && pwd`
 #建立输出文件,清理过期文件
 OUT_DIR=$PROG_ADIR/output/$TODAY_INDEX/
 mkdir -p $OUT_DIR
-rm -rf $OUT_DIR/*
 date  > $OUT_DIR/date.read
 ERR_OUT=$OUT_DIR/log.err
 LOG_OUT=$OUT_DIR/log.out
-rm -f $PROG_DIR/flag.*
 
 
 read_machine_conf 
@@ -116,7 +114,7 @@ run(){
     done
 }
 
-case "$1" in
+case "$2" in
     install)
         install_prog
         ;;
