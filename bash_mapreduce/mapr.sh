@@ -120,6 +120,9 @@ case "$1" in
     install)
         install_prog
         ;;
+    start)
+        start_prog
+        ;;
     collect)
         check_result
         ;;
