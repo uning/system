@@ -37,16 +37,21 @@ MY_NAME=`basename $MY_ABSOLUTE_PATH`
 
 usage(){
 cat <<EOT
-  $0 PROG_DIR work_run_maxtime  
-  分发代码到目标机器
+  $0 install|start|collect|help|sum PROG_DIR work_run_maxtime  
+    install -- 分发代码
+    start   -- 启动
+    collect -- 收集结果
+    sum     -- 汇总
+    run     -- start,collect,sum
   并收集结果
 EOT
 }
 
+check_help $*
 
 
-PROG_DIR=$1
-RUN_TIME=$2
+PROG_DIR=$2
+RUN_TIME=$3
 [ ! -d "$PROG_DIR" ] && { echo  no PROG_DIR get; exit ; }
 check_if_exit $PROG_DIR/summery.sh  -x  "no summery script or can't execute"
 check_if_exit $PROG_DIR/worker/start.sh  -x  "no worker script or can't execute"
@@ -66,45 +71,66 @@ rm -f $PROG_DIR/flag.*
 
 read_machine_conf 
 
-if [ "$3" == 'install' ] ; then 
-    install_prog
-fi
 
-start_prog 
+run(){
+    start_prog 
 
-if [ -f $ERR_OUT ] ; then
-    send_error_report_exit "in start_prog"
-fi
-
-mport=$((RUN_TIME+1))
-if [ $mport -eq 1 ] ;then
-	write_std 'invalid RUNTIME ,use default 3600'
-	RUN_TIME=3600
-fi
-
-elapse_sec=0
-
-while true
-do
-
-    write_std "sleep $RUN_TIME secs, elapse_sec=$elapse_sec secs"
-    if [ $elapse_sec  -lt $RUN_TIME ] ; then
-        sleep $RUN_TIME
-        elapse_sec=$(($elapse_sec+$RUN_TIME))
-        continue 
+    if [ -f $ERR_OUT ] ; then
+        send_error_report_exit "in start_prog"
     fi
-    retry=$((retry+1))
-    if [ $retry -lt 2 ] ; then 
-        write_std "retry=$retry"
+
+    mport=$((RUN_TIME+1))
+    if [ $mport -eq 1 ] ;then
+        write_std 'invalid RUNTIME ,use default 3600'
+        RUN_TIME=3600
+    fi
+
+
+    elapse_sec=0
+    while true
+    do
+        write_std "sleep $RUN_TIME secs, elapse_sec=$elapse_sec secs"
+        if [ $elapse_sec  -lt $RUN_TIME ] ; then
+            sleep $RUN_TIME
+            elapse_sec=$(($elapse_sec+$RUN_TIME))
+            continue 
+        fi
+        retry=$((retry+1))
+        if [ $retry -lt 2 ] ; then 
+            write_std "retry=$retry"
+            check_result
+        else
+            send_error_report_exit "max retry check_result"
+            exit
+        fi
+
+        if [  -f $PROG_ADIR/flag.result ] ; then 
+            summerize_start
+            break
+        fi
+
+        if [  -f $PROG_ADIR/flag.start ] ; then 
+            break
+        fi
+
+    done
+}
+
+case "$1" in
+    install)
+        install_prog
+        ;;
+    collect)
         check_result
-    else
-        send_error_report_exit "max retry check_result"
-        exit
-    fi
-    if [  -f $PROG_ADIR/flag.start ] ; then 
-        break
-    fi
-
-done
-
-
+        ;;
+    sum)
+        summerize_start
+        ;;
+    run)
+        run
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac

@@ -93,7 +93,7 @@ read_machine_conf()
         M_IPS[$i]=$ip
         M_LOCS[$i]=$loc
         M_TAGS[$i]=$tag
-        write_std :read_machine_conf: $i $ip $loc $tag
+       # write_std :read_machine_conf: $i $ip $loc $tag
         i=$((i+1))
     done < $PROG_ADIR/machine.conf
     MACHINE_NUM=$i
@@ -162,7 +162,6 @@ start_prog()
 summerize_start()
 {
     write_std :summerize_start: start
-    echo $OUT_DIR >$PROG_ADIR/flag.result
     cd   $PROG_ADIR && ./summery.sh  
     if [ ! -f $PROG_ADIR/flag.start ] ; then 
         write_err $PROG_DIR not start summery
@@ -220,6 +219,6 @@ check_result()
     fi
 
     if [ $incomplete_num -eq 0 ] ; then
-        summerize_start
+        echo $OUT_DIR >$PROG_ADIR/flag.result
     fi
 }
