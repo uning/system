@@ -84,12 +84,15 @@ read_machine_conf()
     do
         ip=$(echo $ip_loc | awk  '{print $1}')
         loc=$(echo $ip_loc | awk  '{print $2}')
+        tag=$(echo $ip_loc | awk  '{print $3}')
 
         comment=${ip:0:1}
         [ "$comment" == "#"  ] && {  continue ; }
         [ "$comment" == ""  ] && {  continue ; }
+        [ "$loc" == ""  ] && {  echo no loc $ip_loc; continue ; }
+        [ "$tag" == ""  ] && {  echo no tag $ip_loc; continue ; }
 
-        tag=$ip${loc////__}
+        #tag=$ip${loc////__}
         M_IPS[$i]=$ip
         M_LOCS[$i]=$loc
         M_TAGS[$i]=$tag
