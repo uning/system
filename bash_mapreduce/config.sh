@@ -175,6 +175,7 @@ summerize_start()
 check_result()
 {
     rm -f $PROG_ADIR/flag.result
+    rm -rf $OUT_DIR/*
     incomplete_num=0
     error_num=0
     for ((i=0;i<$MACHINE_NUM;i++))
@@ -183,6 +184,8 @@ check_result()
         loc=${M_LOCS[$i]};
         tag=${M_TAGS[$i]};
         my_out_dir=$OUT_DIR/$tag
+        mkdir -p $my_out_dir
+
         #失败
         if [  -f  $my_out_dir/flag.error ] ; then
             error_num=$((error_num+1))
