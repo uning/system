@@ -130,7 +130,7 @@ install_prog()
         fi
 
         ssh -n $ip "mkdir -p $loc"
-        rsync $PROG_ADIR/worker/* $ip:$loc
+        rsync -avz $PROG_ADIR/worker/* $ip:$loc
         write_std :install_prog: prog to $ip $loc
 
     done 

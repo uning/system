@@ -7,7 +7,6 @@
 
 page_root=`dirname $0`
 my_ab_path=`cd $page_root && pwd`
-rm $my_ab_path/flag.* -rf
 
 date +%s >$my_ab_path/flag.start
 
