@@ -60,7 +60,8 @@ check_if_exit $PROG_DIR/machine.conf  -f  "machine.conf not find in $PROG_DIR "
 PROG_ADIR=`cd $PROG_DIR && pwd`
 
 #建立输出文件,清理过期文件
-OUT_DIR=$PROG_ADIR/output/$TODAY_INDEX/
+OUT_DIR=$PROG_ADIR/output/$DATE_NUMBER/
+rm -rf $PROG_ADIR/output/$RM_DATE_NUMBER/
 mkdir -p $OUT_DIR
 date  > $OUT_DIR/date.read
 ERR_OUT=$OUT_DIR/log.err
@@ -93,6 +94,7 @@ run(){
             elapse_sec=$(($elapse_sec+$RUN_TIME))
             continue 
         fi
+
         retry=$((retry+1))
         if [ $retry -lt 2 ] ; then 
             write_std "retry=$retry"
@@ -110,6 +112,7 @@ run(){
         if [  -f $PROG_ADIR/flag.start ] ; then 
             break
         fi
+        sleep 30
 
     done
 }

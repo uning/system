@@ -23,9 +23,10 @@ MACHINE_NUM=0 #read from machine.conf ,by read_machine_conf
 WEEK_DAY=$(date +%w)
 TIME_NS=$(date +%s%N)
 RUN_DATE=$(date)
+
 DATE_NUMBER=$(date +%Y%m%d)
-RM_DATE_NUMBER=$(date -d "-$BAK_KEEP_NUM day" +%Y%m%d)
 BAK_KEEP_NUM=3 #保留最近多少天的备份数据
+RM_DATE_NUMBER=$(date -d "-$BAK_KEEP_NUM day" +%Y%m%d)
 TODAY_INDEX=$(($(date +%s)/86400))
 TODAY_INDEX=$(($TODAY_INDEX%$BAK_KEEP_NUM)) 
 
@@ -77,9 +78,9 @@ send_error_report_exit()
 }
 
 
-i=0
 read_machine_conf()
 {
+    i=0
     while read ip_loc
     do
         ip=$(echo $ip_loc | awk  '{print $1}')
@@ -129,31 +130,32 @@ install_prog()
         fi
 
         ssh -n $ip "mkdir -p $loc"
-        scp $PROG_ADIR/worker/* $ip:$loc
+        rsync $PROG_ADIR/worker/* $ip:$loc
         write_std :install_prog: prog to $ip $loc
 
     done 
     write_std install_prog ended
 }
 
-#start prog with check
+#start prog with check,不能重复掉，需要修改
 start_prog()
 {
 
+    rm -f $PROG_ADIR/flag.*
     for ((i=0;i<$MACHINE_NUM;i++))
     do
         ip=${M_IPS[$i]};
         loc=${M_LOCS[$i]};
-        tag=${ip}${loc////__}
+        tag=${M_TAGS[$i]};
         my_out_dir=$OUT_DIR/$tag
         rm -rf $my_out_dir
         mkdir -p $my_out_dir
+
         write_std :start_prog:$ip $loc
         ssh -n $ip "cd $loc && nohup ./start.sh >out &"
         continue 
         #not check 
         sleep 2
-
         scp $ip:$loc/flag.* $my_out_dir 2>/dev/null
         # [ $? -eq 0 ] || { date > $OUT_DIR/error.start }
 
@@ -202,7 +204,6 @@ check_result()
         scp $ip:$loc/flag.* $my_out_dir 
 
         write_std scp $ip:$loc/flag.* $my_out_dir 
-        ls $my_out_dir -lh
         # [ $? -eq 0 ] || { date > $OUT_DIR/error.start }
 
         #没有启动
@@ -210,20 +211,26 @@ check_result()
             error_num=$((error_num+1))
             write_err $tag start error,plz check
         fi
-        if [ ! -f  $my_out_dir/flag.result ] ; then
-            error_num=$((error_num+1))
-            write_err $tag not get result_dir file
-        fi
 
         #完成
-        if [  -f  $my_out_dir/flag.end ] && [ -f $my_out_dir/flag.result ] ; then
+        if [  -f  $my_out_dir/flag.end ] ; then
+            if [ ! -f  $my_out_dir/flag.result ] ; then
+                error_num=$((error_num+1))
+                write_err $tag not get result_dir file
+            fi
             remote_result=$(cat "$my_out_dir/flag.result")
-            scp  $ip:$remote_result/* $my_out_dir
-            write_std "scp -v $ip:$remote_result/* $my_out_dir"
+            if [ -z "$remote_result" ] ; then
+                error_num=$((error_num+1))
+                write_err $tag not get result_dir value
+            else
+                scp  $ip:$remote_result/* $my_out_dir
+                write_std get result form $remote_result :$ip $loc
+            fi
         else
             incomplete_num=$((incomplete_num+1))
 
         fi
+
     done 
 
     if [ $error_num -gt 0 ] ; then
