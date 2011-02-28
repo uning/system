@@ -45,7 +45,7 @@ else
     page_root=$(dirname $0)
 fi
 
-my_ab_path=`cd $page_root && pwd`
+my_ab_path=$(cd $page_root && pwd)
 datestr=$(date)
 outfile_sufix=.$(date +%s)
 outfile_sufix=.txt
