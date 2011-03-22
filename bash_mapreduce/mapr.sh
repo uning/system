@@ -66,7 +66,7 @@ mkdir -p $OUT_DIR
 date  > $OUT_DIR/date.read
 ERR_OUT=$OUT_DIR/log.err
 LOG_OUT=$OUT_DIR/log.out
-
+rm -rf $OUT_DIR/log.*
 
 read_machine_conf 
 
@@ -74,9 +74,9 @@ read_machine_conf
 run(){
     start_prog 
 
-    if [ -f $ERR_OUT ] ; then
-        send_error_report_exit "in start_prog"
-    fi
+#    if [ -f $ERR_OUT ] ; then
+#       send_error_report_exit "in start_prog"
+#  fi
 
     mport=$((RUN_TIME+1))
     if [ $mport -eq 1 ] ;then
@@ -109,9 +109,9 @@ run(){
             break
         fi
 
-        if [  -f $PROG_ADIR/flag.start ] ; then 
-            break
-        fi
+#        if [  -f $PROG_ADIR/flag.start ] ; then 
+#           break
+#        fi
         sleep 30
 
     done

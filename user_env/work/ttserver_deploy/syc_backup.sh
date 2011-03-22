@@ -28,10 +28,25 @@ my_ab_path=`cd $page_root && pwd`
 
 spath=$1
 ts=$2
+tm=${ts::10}
+tdate=$(date -d @${tm})
+tdatestr=$(date +%Y-%m-%d -d @$tm)
+
 sout_path=$(dirname $(dirname $spath))/backup/$NOW_BACKUP_INDEX
 mkdir -p $sout_path
+lts=$(cat $sout_path/rts 2>/dev/null)
+ltm=${lts::10}
+ltdate=$(date -d @${ltm})
+ltdatestr=$(date +%Y-%m-%d -d @$ltm)
+
+if [ "$ltdatestr" == "$tdatestr" ] ; then 
+    echo "$tdatestr  backuped" >>$my_ab_path/ttbakup.log
+    exit 0
+fi
+
+
 cp $spath $sout_path
 echo $ts >$sout_path/rts
-date -d @${ts:1:10} >$sout_path/date
-echo $2 $1 >>$my_ab_path/ttbakup.log
+echo $tdate >$sout_path/date
+echo $tdate $2 $1 >>$my_ab_path/ttbakup.log
 echo $2 $1 

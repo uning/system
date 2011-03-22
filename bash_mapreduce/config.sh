@@ -153,15 +153,15 @@ start_prog()
 
         write_std :start_prog:$ip $loc
         ssh -n $ip "cd $loc && nohup ./start.sh >out &"
-        continue 
+        # continue 
         #not check 
-        sleep 2
+        sleep 4
         scp $ip:$loc/flag.* $my_out_dir 2>/dev/null
-        # [ $? -eq 0 ] || { date > $OUT_DIR/error.start }
+        [ $? -eq 0 ] && { date > $OUT_DIR/error.start }
 
-        if [ ! -f  $my_out_dir/flag.start ] ; then
-            write_err :start_prog: not get flag.start $tag exit
-        fi
+        #if [ ! -f  $my_out_dir/flag.start ] ; then
+        #    write_err :start_prog: not get flag.start $tag exit
+       # fi
     done
 }
 
