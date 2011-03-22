@@ -18,6 +18,7 @@
 #===============================================================================
 
 #run by ttserver
+#数据备份在ttserver所在路径backup下
 
 page_root=`dirname $0`
 my_ab_path=`cd $page_root && pwd`
@@ -40,13 +41,11 @@ ltdate=$(date -d @${ltm})
 ltdatestr=$(date +%Y-%m-%d -d @$ltm)
 
 if [ "$ltdatestr" == "$tdatestr" ] ; then 
-    echo "$tdatestr  backuped" >>$my_ab_path/ttbakup.log
+    echo "[$tdate]  backuped $lts $spath" >>$my_ab_path/ttbakup.log
     exit 0
 fi
 
-
-cp $spath $sout_path
-echo $ts >$sout_path/rts
 echo $tdate >$sout_path/date
-echo $tdate $2 $1 >>$my_ab_path/ttbakup.log
-echo $2 $1 
+echo $ts >$sout_path/rts
+cp $spath $sout_path
+echo [$tdate] $2 $1 >>$my_ab_path/ttbakup.log
