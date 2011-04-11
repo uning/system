@@ -29,8 +29,8 @@ mkdir -p  $SYS $DATA $APP $RUN $SRC
 __install_tc()
 {
 	cd $SRC
-	VER='1.4.45'
-	local prefix=/usr/local   
+	VER='1.4.47'
+	local prefix=$WORK_ROOT/sys/lib/ttserver
 	pack=tokyocabinet-$VER.tar.gz
 	dir=tokyocabinet-$VER
 
@@ -57,8 +57,8 @@ __install_tc()
 __install_tt()
 {
 	cd $SRC
-	VER='1.1.40'
-	local prefix=/usr/local   
+	VER='1.1.41'
+	local prefix=$WORK_ROOT/sys/ttserver
 	pack=tokyotyrant-$VER.tar.gz
 	dir=tokyotyrant-$VER
 
@@ -75,7 +75,7 @@ __install_tt()
 
 
 	./configure \
-	--prefix=$prefix 
+	--prefix=$prefix  --with-tc=$WORK_ROOT/sys/lib/ttserver
 	make
 	make install
 	cd ../

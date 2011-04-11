@@ -1,0 +1,200 @@
+#!/bin/sh
+
+#----------------------------------------------------------------
+# Startup script for the server of Tokyo Tyrant
+#----------------------------------------------------------------
+
+## 
+## 需要修改，对于主库，启动优化参数,名称不能含有数字
+## 从库需要主库的ip port
+##
+dbconfig="main.tcb#lmemb=1024#nmemb=2048#bnum=2000000#opts=l#rcnum=1000000"
+runopts="-le"  #-le only error; -ld debug
+
+
+
+# configuration variables
+prog="ttservctl"
+tool_top="/usr/local/bin"
+cmd="$tool_top/ttserver"
+page_root=`dirname $0`
+my_ab_path=`cd $page_root && pwd`
+
+my_f_path=`cd $my_ab_path/../../ && pwd`
+my_name=`basename $my_f_path`
+port=$(echo $my_name  | awk -F. '{print $2}')
+port=$((port+1))
+
+sid=209
+
+basedir=$my_ab_path
+pidfile="$basedir/pid"
+logfile="$basedir/log.err"
+ulimsiz="256m"
+rtsfile="$basedir/rts.run"
+dbname="$basedir/$dbconfig"
+
+
+maxcon="65535"
+retval=0
+
+
+
+# setting environment variables
+LANG=C
+LC_ALL=C
+PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
+export LANG LC_ALL PATH
+
+
+status(){
+    $tool_top/tcrmgr inform -port $port -st localhost
+    if [ $mhost ] ; then
+        echo 
+        echo "=======================Master Status============"
+        $tool_top/tcrmgr inform -port $mport -st $mhost
+    fi
+}
+
+
+# start the server
+start(){
+  printf 'Starting the server of Tokyo Tyrant\n'
+  mkdir -p "$basedir"
+  if [ -z "$basedir" ] || [ -z "$port" ] || [ -z "$pidfile" ] || [ -z "$dbname" ] ; then
+    printf 'Invalid configuration\n'
+    retval=1
+  elif ! [ -d "$basedir" ] ; then
+    printf 'No such directory: %s\n' "$basedir"
+    retval=1
+  elif [ -f "$pidfile" ] ; then
+      pid=$(cat "$pidfile")
+    printf 'Existing process: %d\n' "$pid"
+    retval=1
+  else
+    if [ -n "$maxcon" ] ; then
+      ulimit -n "$maxcon" >/dev/null 2>&1
+    fi
+    cmd="$cmd -port $port -dmn -pid $pidfile $runopts"
+    if [ -n "$logfile" ] ; then
+      cmd="$cmd -log $logfile"
+    fi
+    if [ -n "$ulogdir" ] ; then
+      mkdir -p "$ulogdir"
+      cmd="$cmd -ulog $ulogdir"
+    fi
+    if [ -n "$ulimsiz" ] ; then
+      cmd="$cmd -ulim $ulimsiz"
+    fi
+    if [ -n "$sid" ] ; then
+      cmd="$cmd -sid $sid"
+    fi
+    if [ -n "$mhost" ] ; then
+      cmd="$cmd -mhost $mhost"
+    fi
+    if [ -n "$mport" ] ; then
+      cmd="$cmd -mport $mport"
+    fi
+    if [ -n "$rtsfile" ] ; then
+      cmd="$cmd -rts $rtsfile"
+    fi
+    if [ -n "$extfile" ] ; then
+      cmd="$cmd -ext $extfile"
+    fi
+    cmd="$cmd $dbname"
+    printf "Executing: %s\n" "$cmd"
+    $cmd
+    if [ "$?" -eq 0 ] ; then
+      printf 'Done\n'
+    else
+      printf 'The server could not started\n'
+      retval=1
+    fi
+  fi
+}
+
+
+# stop the server
+stop(){
+  printf 'Stopping the server of Tokyo Tyrant\n'
+  if [ -f "$pidfile" ] ; then
+    pid=`cat "$pidfile"`
+    printf "Sending the terminal signal to the process: %s\n" "$pid"
+    kill -TERM "$pid"
+    c=0
+    while true ; do
+      sleep 0.1
+      if [ -f "$pidfile" ] ; then
+        c=`expr $c + 1`
+        if [ "$c" -ge 100 ] ; then
+          printf 'Hanging process: %d\n' "$pid"
+          retval=1
+          break
+        fi
+      else
+        printf 'Done\n'
+        break
+      fi
+    done
+  else
+    printf 'No process found\n'
+    retval=1
+  fi
+}
+
+
+# send HUP to the server for log rotation
+hup(){
+  printf 'Sending HUP signal to the server of Tokyo Tyrant\n'
+  if [ -f "$pidfile" ] ; then
+    pid=`cat "$pidfile"`
+    printf "Sending the hangup signal to the process: %s\n" "$pid"
+    kill -HUP "$pid"
+    printf 'Done\n'
+  else
+    printf 'No process found\n'
+    retval=1
+  fi
+}
+
+
+# check permission
+if [ -d "$basedir" ] && ! touch "$basedir/$$" >/dev/null 2>&1
+then
+  printf 'Permission denied\n'
+  exit 1
+fi
+rm -f "$basedir/$$"
+
+
+# dispatch the command
+case "$1" in
+start)
+  start
+  ;;
+stop)
+  stop
+  ;;
+restart)
+  stop
+  start
+  ;;
+hup)
+  hup
+  ;;
+status)
+  status
+  ;;
+*)
+  printf 'Usage: %s {start|stop|restart|hup|status}\n' "$0"
+  exit 1
+  ;;
+esac
+
+
+# exit
+exit "$retval"
+
+
+
+# END OF FILE

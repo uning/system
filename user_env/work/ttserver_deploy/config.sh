@@ -18,26 +18,21 @@
 #===============================================================================
 
 
+source $my_ab_path/config.sh.config
 
-USER_HOME='/home/hotel'
-TT_TOOL_TOP=/usr/local/bin
-LOGIN_NAME=`whoami`
-
-SSH_CMD=ssh
-SCP_CMD=scp
-
-
-
-SSH_TOOL_TOP=$USER_HOME/bin/sl/bin
 WORK_DIR=`pwd`
 WEEK_DAY=$(date +%w)
 TIME_NS=$(date +%s%N)
 TT_NOW_TIMESTAMP=`expr $TIME_NS / 1000`
 RUN_DATE=$(date)
 
+
+
 TODAY_INDEX=$(($(date +%s)/86400))
 BAK_KEEP_NUM=3 #保留最近多少天的备份数据
 NOW_BACKUP_INDEX=$(($TODAY_INDEX%$BAK_KEEP_NUM)) 
+
+
 
 tt0(){
     return 0
@@ -96,8 +91,8 @@ dump_ttserver_data()
     scripts_dir=$(dirname $sdata_dir)
 
     if [ $need_remote -eq 1 ] ; then
-        $SCP_CMD $my_ab_path/config.sh $host:$scripts_dir/ 
-        $SCP_CMD $my_ab_path/syc_backup.sh $host:$scripts_dir/ 
+        $CMD_SCP $my_ab_path/config.sh $host:$scripts_dir/ 
+        $CMD_SCP $my_ab_path/syc_backup.sh $host:$scripts_dir/ 
         [ $? -eq 0 ] || { echo cp scripts to $host failed ; return 1 ; }
     fi
         $TT_TOOL_TOP/tcrmgr copy -port $port  $host  @$scripts_dir/syc_backup.sh
@@ -106,12 +101,12 @@ dump_ttserver_data()
     if [ -d "$dir" ] ; then 
         mkdir -p $dir/data
         if [ $need_remote -eq 1 ] ; then
-            $SCP_CMD $host:$sout_path/* $dir/data
+            $CMD_SCP $host:$sout_path/* $dir/data
         else
             cp -v $sout_path/* $dir/data
         fi
 
-        [ $? -eq 0 ] || { echo  scp failed ; return 1 ; }
+        [ $? -eq 0 ] || { echo  $CMD_SCP failed ; return 1 ; }
         if [ -n "$sid" ] ; then
             gen_ctrl $dir/ctrl $sout_name $port $host $sid
             $dir/ctrl start
@@ -147,8 +142,8 @@ gen_ctrl()
 ## 需要修改，对于主库，启动优化参数,名称不能含有数字
 ## 从库需要主库的ip port
 ##
-dbconfig="$dbfname#lmemb=1024#nmemb=2048#bnum=2000000#opts=l#rcnum=1000000#idx=pid#xmsiz=1000000000"
-runopts="-ld"  #-le only error; -ld debug
+dbconfig="$dbfname#lmemb=1024#nmemb=2048#bnum=2000000#opts=l#rcnum=1000000"
+runopts="-le"  #-le only error; -ld debug
 mhost=$mhost
 mport=$mport
 
@@ -343,3 +338,90 @@ EOTT
 chmod +x $ctrlname
 echo $ctrlname=ctrlname
 }
+
+
+local_inc_dump()
+{
+    port=$1
+    [ -n "$host" ]   || host='localhost'
+
+
+
+    spath=$($TT_TOOL_TOP/tcrmgr inform -port $port  -st $host | awk '{if($1=="path")print $2; }')
+    [ -z "$spath" ] && { echo not get db path plz check; return 1 ; }
+    dbtype=${spath##*.} # get ext 
+    sout_name=$(basename $spath)
+    sdata_dir=$(dirname $(dirname $spath))
+    sulog_dir=$sdata_dir/data/ulog
+    sout_path=$sdata_dir/backup/inc
+    if [ ! -d $sout_path ] ; then
+        #从原来冷备中选取
+        mv  $sdata_dir/backup/2  $sout_path  
+    fi
+    if [ ! -d $sout_path ] ; then
+        echo "Noexist $sout_path 0";
+        return  1
+    fi
+
+    cp $my_ab_path/bak_ctrl $sout_path/ctrl
+    if [ -f $sout_path/rts ] ; then 
+        ts=$(cat $sout_path/rts);
+    else
+        ts=1
+        echo "Warning $sout_path has no rts file"
+    fi
+    bport=$((port+1))
+    echo $TT_TOOL_TOP/tcrmgr restore -port $bport -ts $ts localhost $sulog_dir
+    cd $sout_path && ./ctrl start
+    $TT_TOOL_TOP/tcrmgr restore -port $bport -ts $ts localhost $sulog_dir
+    [ $? -eq 0 ] || { echo  restore failed plz check ; return 1 ; }
+    cd $sout_path && ./ctrl status
+    cd $sout_path && ./ctrl stop
+    echo  $TIME_NS >$sout_path/rts
+} 
+
+
+remote_inc_dump()
+{
+    port=$1
+    host=$2
+    dir=$3
+    [ -n "$host" ]   || host='localhost'
+
+
+
+    spath=$($TT_TOOL_TOP/tcrmgr inform -port $port  -st $host | awk '{if($1=="path")print $2; }')
+    [ -z "$spath" ] && { echo not get db path plz check; return 1 ; }
+    dbtype=${spath##*.} # get ext 
+    sout_name=$(basename $spath)
+    sdata_dir=$(dirname $(dirname $spath))
+    sulog_dir=$sdata_dir/data/ulog
+    sout_path=$dir
+    if [ ! -d $sout_path ] ; then
+        #从原来冷备中选取
+        mkdir -p $sout_path/data
+        dump_ttserver_data $port $host $sout_path 
+    fi
+    if [ ! -d $sout_path ] ; then
+        echo "Noexist $sout_path 0";
+        return  1
+    fi
+    $CMD_RSYNC $host:$sulog_dir   $sout_path/mulog
+    sulog_dir=$sout_path/mulog
+
+    cp $my_ab_path/bak_ctrl $sout_path/ctrl
+    if [ -f $sout_path/rts ] ; then 
+        ts=$(cat $sout_path/rts);
+    else
+        ts=1
+        echo "Warning $sout_path has no rts file"
+    fi
+    bport=$((port+1))
+    echo $TT_TOOL_TOP/tcrmgr restore -port $bport -ts $ts localhost $sulog_dir
+    cd $sout_path && ./ctrl start
+    $TT_TOOL_TOP/tcrmgr restore -port $bport -ts $ts localhost $sulog_dir
+    [ $? -eq 0 ] || { echo  restore failed plz check ; return 1 ; }
+    cd $sout_path && ./ctrl status
+    cd $sout_path && ./ctrl stop
+    echo  $TIME_NS >$sout_path/rts
+} 
