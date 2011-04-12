@@ -343,8 +343,9 @@ echo $ctrlname=ctrlname
 local_inc_dump()
 {
     port=$1
+    host=$2
+    dir=$3
     [ -n "$host" ]   || host='localhost'
-
 
 
     spath=$($TT_TOOL_TOP/tcrmgr inform -port $port  -st $host | awk '{if($1=="path")print $2; }')
@@ -354,74 +355,72 @@ local_inc_dump()
     sdata_dir=$(dirname $(dirname $spath))
     sulog_dir=$sdata_dir/data/ulog
     sout_path=$sdata_dir/backup/inc
-    if [ ! -d $sout_path ] ; then
-        #从原来冷备中选取
-        mv  $sdata_dir/backup/2  $sout_path  
+
+    need_remote=0
+    bport=$((port+1))
+    if [ "$host" != "localhost" ]  &&  [ "$host" != "127.0.0.1" ] ; then
+        need_remote=1
+        bport=${dir##*.}
+        bport=$((bport+1))
+        sout_path=$dir/backup/minc
     fi
+
+
+    if [ ! -d $sout_path ] ; then
+        if [ $need_remote == '0' ] ; then
+            #从原来冷备中选取
+            mv  $sdata_dir/backup/0  $sout_path  
+            cp $my_ab_path/bak_ctrl $sout_path/ctrl
+        else
+            mkdir $sout_path
+            $CMD_RSYNC -avz $host:$sdata_dir/backup/inc/ $sout_path
+            [ $? -eq 0 ] || { echo  sync  inc data failed failed plz check $host:$sdata_dir  ; return 1 ; }
+            [ -f $sout_path/ctrl ] || { echo  no ctrl find in $sout_path/ctrl; return 1 ; }
+            
+        fi
+    fi
+
     if [ ! -d $sout_path ] ; then
         echo "Noexist $sout_path 0";
         return  1
     fi
 
-    cp $my_ab_path/bak_ctrl $sout_path/ctrl
     if [ -f $sout_path/rts ] ; then 
         ts=$(cat $sout_path/rts);
-    else
+    fi
+
+    if [ -z $ts ] ; then
         ts=1
         echo "Warning $sout_path has no rts file"
     fi
-    bport=$((port+1))
-    echo $TT_TOOL_TOP/tcrmgr restore -port $bport -ts $ts localhost $sulog_dir
-    cd $sout_path && ./ctrl start
-    $TT_TOOL_TOP/tcrmgr restore -port $bport -ts $ts localhost $sulog_dir
+
+    rm -rf $sout_path/uulog
+    mkdir -p $sout_path/uulog
+
+    #copy ulog
+    if [ $need_remote == '1' ] ; then 
+        mkdir -p  $sout_path/mlog 
+        $CMD_RSYNC -av $host:$sulog_dir/ $sout_path/mlog
+        [ $? -eq 0 ] || { echo  sync  log failed plz check $host:$sulog_dir/  ; return 1 ; }
+        sulog_dir=$sout_path/mlog
+    fi
+
+
+    echo $TT_TOOL_TOP/ttulmgr export  -ts $ts  $sulog_dir
+    $TT_TOOL_TOP/ttulmgr export  -ts $ts  $sulog_dir | \
+        tee  $sout_path/uulog/1.tsv | \
+        $TT_TOOL_TOP/ttulmgr import $sout_path/uulog
+
+    [ $? -eq 0 ] || { echo  import log failed plz check ; return 1 ; }
+
+    cd $sout_path && rm -rf log.err && ./ctrl start
+    sleep 2
+     $TT_TOOL_TOP/tcrmgr restore -port $bport -ts $ts localhost $sout_path/uulog
     [ $? -eq 0 ] || { echo  restore failed plz check ; return 1 ; }
     cd $sout_path && ./ctrl status
     cd $sout_path && ./ctrl stop
-    echo  $TIME_NS >$sout_path/rts
+    tail -n 1 $sout_path/uulog/1.tsv | awk '{print $1}' > $sout_path/rts 
+    cat $sout_path/rts
+
 } 
 
-
-remote_inc_dump()
-{
-    port=$1
-    host=$2
-    dir=$3
-    [ -n "$host" ]   || host='localhost'
-
-
-
-    spath=$($TT_TOOL_TOP/tcrmgr inform -port $port  -st $host | awk '{if($1=="path")print $2; }')
-    [ -z "$spath" ] && { echo not get db path plz check; return 1 ; }
-    dbtype=${spath##*.} # get ext 
-    sout_name=$(basename $spath)
-    sdata_dir=$(dirname $(dirname $spath))
-    sulog_dir=$sdata_dir/data/ulog
-    sout_path=$dir
-    if [ ! -d $sout_path ] ; then
-        #从原来冷备中选取
-        mkdir -p $sout_path/data
-        dump_ttserver_data $port $host $sout_path 
-    fi
-    if [ ! -d $sout_path ] ; then
-        echo "Noexist $sout_path 0";
-        return  1
-    fi
-    $CMD_RSYNC $host:$sulog_dir   $sout_path/mulog
-    sulog_dir=$sout_path/mulog
-
-    cp $my_ab_path/bak_ctrl $sout_path/ctrl
-    if [ -f $sout_path/rts ] ; then 
-        ts=$(cat $sout_path/rts);
-    else
-        ts=1
-        echo "Warning $sout_path has no rts file"
-    fi
-    bport=$((port+1))
-    echo $TT_TOOL_TOP/tcrmgr restore -port $bport -ts $ts localhost $sulog_dir
-    cd $sout_path && ./ctrl start
-    $TT_TOOL_TOP/tcrmgr restore -port $bport -ts $ts localhost $sulog_dir
-    [ $? -eq 0 ] || { echo  restore failed plz check ; return 1 ; }
-    cd $sout_path && ./ctrl status
-    cd $sout_path && ./ctrl stop
-    echo  $TIME_NS >$sout_path/rts
-} 

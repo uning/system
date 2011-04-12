@@ -6,10 +6,9 @@
 
 ## 
 ## 需要修改，对于主库，启动优化参数,名称不能含有数字
-## 从库需要主库的ip port
+## 
 ##
-dbconfig="main.tcb#lmemb=1024#nmemb=2048#bnum=2000000#opts=l#rcnum=1000000"
-runopts="-le"  #-le only error; -ld debug
+runopts="-ld"  #-le only error; -ld debug
 
 
 
@@ -17,15 +16,18 @@ runopts="-le"  #-le only error; -ld debug
 prog="ttservctl"
 tool_top="/usr/local/bin"
 cmd="$tool_top/ttserver"
-page_root=`dirname $0`
-my_ab_path=`cd $page_root && pwd`
+page_root=$(dirname $0)
+my_ab_path=$(cd $page_root && pwd)
 
-my_f_path=`cd $my_ab_path/../../ && pwd`
-my_name=`basename $my_f_path`
-port=$(echo $my_name  | awk -F. '{print $2}')
+my_f_path=$(cd $my_ab_path/../../ && pwd)
+my_name=$(basename $my_f_path)
+port=${$my_name##*.}
+port=$(echo $port | sed s/[^0-9]//g)
 port=$((port+1))
+dbconfig=$(grep 'dbconfig=' $my_f_path/ctrl)
+eval $dbconfig
 
-sid=209
+sid=$port
 
 basedir=$my_ab_path
 pidfile="$basedir/pid"
