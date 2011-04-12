@@ -21,7 +21,7 @@ my_ab_path=$(cd $page_root && pwd)
 
 my_f_path=$(cd $my_ab_path/../../ && pwd)
 my_name=$(basename $my_f_path)
-port=${$my_name##*.}
+port=${my_name##*.}
 port=$(echo $port | sed s/[^0-9]//g)
 port=$((port+1))
 dbconfig=$(grep 'dbconfig=' $my_f_path/ctrl)
