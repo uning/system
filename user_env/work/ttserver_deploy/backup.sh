@@ -45,12 +45,9 @@ do
     comment=$(echo $port | sed s/[0-9]//g)
     [ "$comment" == "#" ] && { echo ignore $port_name; continue ; }
 
+
     dir=$backup_dir/${host}_$port/$NOW_BACKUP_INDEX
-    mkdir -p $dir
-    dump_ttserver_data  $port $host $dir
+    #mkdir -p $dir && dump_ttserver_data  $port $host $dir
     echo "backup host=$host port=$port  in  $dir" 
-done <<EOT
-16004 localhost
-15000 localhost
-EOT
+done < $conf_file 
 

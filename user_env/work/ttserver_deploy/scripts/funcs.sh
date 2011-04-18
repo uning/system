@@ -1,10 +1,10 @@
 #!/bin/bash
 #===============================================================================
-#          FILE:  config.sh
+#          FILE:  funcs.sh
 # 
-#         USAGE:  ./config.sh 
+#         USAGE:  ./funcs.sh 
 # 
-#   DESCRIPTION:  
+#   DESCRIPTION: 维护ttserver的公共函数 
 # 
 #       OPTIONS:  ---
 #  REQUIREMENTS:  ---
@@ -17,23 +17,23 @@
 #      REVISION:  ---
 #===============================================================================
 
+#获取scp tcrmgr 等路径
+source $SCRIPT_LIB/logconf.sh
 
-source $my_ab_path/config.sh.config
-
-WORK_DIR=`pwd`
 WEEK_DAY=$(date +%w)
 TIME_NS=$(date +%s%N)
+DATE_STR=$(date +%Y%m%d)
 TT_NOW_TIMESTAMP=`expr $TIME_NS / 1000`
 RUN_DATE=$(date)
 
 
 
 TODAY_INDEX=$(($(date +%s)/86400))
-BAK_KEEP_NUM=3 #保留最近多少天的备份数据
+BAK_KEEP_NUM=2 #保留最近多少天的备份数据
 NOW_BACKUP_INDEX=$(($TODAY_INDEX%$BAK_KEEP_NUM)) 
 
 
-
+#测试返回值
 tt0(){
     return 0
 }
@@ -42,14 +42,48 @@ tt1(){
 }
 
 
+#命令结果缓存,目前使用5分钟之内结果直接缓存
+run_status()
+{
+    flag=run_status_$(echo $* | sed 's/ //g'  | md5sum | awk '{print $1}')
+   # echo $flag $* >&2
+    if [ -f /tmp/$flag.out ] ; then
+        ltm=$(stat -c %Y /tmp/$flag.out)
+        now=$(date +%s)
+        #echo cache $flag
+        tsdiff=$((now-ltm))
+
+        #5分钟直接返回
+        if [  $tsdiff -lt 300 ] ; then
+            cat /tmp/$flag.out
+            return 0
+        fi
+    fi
+    $*  | tee /tmp/$flag.out 
+}
+
+#tcrmgr inform 字段获取
+tstatus()
+{
+    vname=$1
+    port=$2
+    host=$3
+    prog=$4
+    [ -n "$host" ]   || host='localhost'
+    [ -n "$prog" ]   || prog=$TT_TOOL_TOP/tcrmgr 
+
+    run_status $prog inform -st -port $port   $host | awk '{if($1=="'$vname'"){print $2; exit;} }'
+}
+
 
 check_if_exit(){
-    [ $2 $1 ] 2>/dev/null || { echo no  $2 $1 $3 ; exit ; }
+    [ $2 $1 ] 2>/dev/null || { logfatal no  $2 $1 $3 ; exit ; }
 }
 check_nif_exit(){
-    [ $2 $1 ] 2>/dev/null && { echo no  $2 $1 $3 ; exit ; }
+    [ $2 $1 ] 2>/dev/null && { logfatal no  $2 $1 $3 ; exit ; }
 }
 
+#检查是否出帮助
 check_help(){
     [ "$1" ==  "" ] && { usage ; exit; }
     for arg in $*
@@ -58,6 +92,7 @@ check_help(){
         [ "$helptag" ==  "help" ] || [ "$helptag" ==  "H" ] || [ "$helptag" ==  "?" ]  || [ "$helptag" ==  "h" ] && { usage ; exit; }  
     done
 }
+
 
 
 #从冷备份恢复数据
@@ -80,8 +115,8 @@ dump_ttserver_data()
     fi
 
 
-    spath=$($TT_TOOL_TOP/tcrmgr inform -port $port  -st $host | awk '{if($1=="path")print $2; }')
-    [ -z "$spath" ] && { echo not get db path plz check; return 1 ; }
+    spath=$(tstatus path $port $host)
+    [ ! -f "$spath" ] && { echo $host $port not get db path plz check ; return 1 ; }
     dbtype=${spath##*.} # get ext 
     sout_name=$(basename $spath)
     sdata_dir=$(dirname $(dirname $spath))
@@ -91,22 +126,21 @@ dump_ttserver_data()
     scripts_dir=$(dirname $sdata_dir)
 
     if [ $need_remote -eq 1 ] ; then
-        $CMD_SCP $my_ab_path/config.sh $host:$scripts_dir/ 
-        $CMD_SCP $my_ab_path/syc_backup.sh $host:$scripts_dir/ 
-        [ $? -eq 0 ] || { echo cp scripts to $host failed ; return 1 ; }
+        $CMD_SCP -r $SCRIPT_LIB $host:$scripts_dir/ 
+        [ $? -eq 0 ] || { logfatal scripts to $host failed ; return 1 ; }
     fi
-        $TT_TOOL_TOP/tcrmgr copy -port $port  $host  @$scripts_dir/syc_backup.sh
-        [ $? -eq 0 ] || { echo  dump failed  $TT_TOOL_TOP/tcrmgr copy -port $port $host  @$scripts_dir/syc_backup.sh ; return 1 ; }
+        $TT_TOOL_TOP/tcrmgr copy -port $port  $host  @$scripts_dir/scripts/syc_backup.sh
+        [ $? -eq 0 ] || { logfatal dump failed  $TT_TOOL_TOP/tcrmgr copy -port $port $host  @$scripts_dir/scripts/syc_backup.sh ; return 1 ; }
 
     if [ -d "$dir" ] ; then 
         mkdir -p $dir/data
         if [ $need_remote -eq 1 ] ; then
             $CMD_SCP $host:$sout_path/* $dir/data
+            [ $? -eq 0 ] || { logfatal  $CMD_SCP failed ; return 1 ; }
         else
             cp -v $sout_path/* $dir/data
         fi
 
-        [ $? -eq 0 ] || { echo  $CMD_SCP failed ; return 1 ; }
         if [ -n "$sid" ] ; then
             gen_ctrl $dir/ctrl $sout_name $port $host $sid
             $dir/ctrl start
@@ -339,7 +373,69 @@ chmod +x $ctrlname
 echo $ctrlname=ctrlname
 }
 
+#从目录获取ttserver run port
+get_port_from_dir()
+{
+    dir=$1;
+    abdir=$(cd $dir && pwd );
+    my_name=$(basename $abdir)
+    port=$(echo $my_name | awk -F. '{print $2}' | sed s/[^0-9]//g)
+    [  -n "$port" ] && { echo $port ; return 0 ; }
+    abdir=$(cd $abdir/../../ && pwd );
+    my_name=$(basename $abdir)
+    port=$(echo $my_name | awk -F. '{print $2}' | sed s/[^0-9]//g)
+    [  -n "$port" ] && { echo $((port+1)) ; return 0 ; }
+    return 1 
 
+}
+
+#执行log_replay
+#ulog dir
+log_replay()
+{
+    sdir=$1
+    ulogdir=$2
+    [  -f  $sdir/ctrl ] || { logwarn $sdir/ctrl not exist ; return 1 ; }
+    [  -d  $ulogdir ] || { logwarn $ulogdir not exist ; return 1 ; }
+    $sdir/ctrl start
+    sleep  2
+    [ $? -eq 0 ] || { logfatal  start failed $sdir/ctrl   ; return 1 ; }
+    port=$(get_port_from_dir $sdir)
+    [ $? -eq 0 ] || { logfatal  not get port    ; return 1 ; }
+
+    if [ ! -f $sdir/rts.restore ] ; then 
+        cp $sdir/rts $sdir/rts.restore
+    fi
+
+    if [ -f $sdir/rts.restore ] ; then 
+        ts=$(cat $sdir/rts.restore);
+    fi
+    [ -n "$ts" ] || ts=1
+
+    loginfo $TT_TOOL_TOP/tcrmgr repl   -ph -port $port -ts $ts  localhost
+    loginfo $TT_TOOL_TOP/tcrmgr restore -port $port -ts $ts   localhost $ulogdir
+    #exit
+    $TT_TOOL_TOP/tcrmgr repl   -ph -port $port -ts $ts  localhost | awk '{print $1}' >$sdir/tm.list &
+    $TT_TOOL_TOP/tcrmgr restore -port $port -ts $ts localhost $ulogdir
+    sleep 5
+    $sdir/ctrl stop
+    ts=$(tail -n 1 $sdir/tm.list | awk '{print $1}') 
+    if [ ! -z "$ts" ]  && [ $ts -gt 13027786240 ] ; then
+        echo $ts >$sdir/rts.restore 
+        loginfo  $ts $sdir  $ulogdir 
+    else
+        logwarn getts $sdir/rts.restore 
+    fi
+    #trick get ts
+
+
+
+
+}
+
+
+#本机：导出ulog到新目录，执行restore
+#远程机器 ：rsync远程ulog到本机，按本机执行
 local_inc_dump()
 {
     port=$1
@@ -348,8 +444,9 @@ local_inc_dump()
     [ -n "$host" ]   || host='localhost'
 
 
-    spath=$($TT_TOOL_TOP/tcrmgr inform -port $port  -st $host | awk '{if($1=="path")print $2; }')
-    [ -z "$spath" ] && { echo not get db path plz check; return 1 ; }
+    spath=$(tstatus  path $port   $host)
+
+    [ -z "$spath" ] && { logfatal $host:$port not get db path plz check; return 1 ; }
     dbtype=${spath##*.} # get ext 
     sout_name=$(basename $spath)
     sdata_dir=$(dirname $(dirname $spath))
@@ -357,11 +454,10 @@ local_inc_dump()
     sout_path=$sdata_dir/backup/inc
 
     need_remote=0
-    bport=$((port+1))
     if [ "$host" != "localhost" ]  &&  [ "$host" != "127.0.0.1" ] ; then
         need_remote=1
         bport=${dir##*.}
-        bport=$((bport+1))
+        bport=$(($bport+1))
         sout_path=$dir/backup/minc
     fi
 
@@ -369,58 +465,38 @@ local_inc_dump()
     if [ ! -d $sout_path ] ; then
         if [ $need_remote == '0' ] ; then
             #从原来冷备中选取
-            mv  $sdata_dir/backup/0  $sout_path  
-            cp $my_ab_path/bak_ctrl $sout_path/ctrl
+            if [ ! -d $sdata_dir/backup/$NOW_BACKUP_INDEX ] ; then
+                dump_ttserver_data $port
+                logwarn " $port do dump"
+            fi
+
+            mv  $sdata_dir/backup/$NOW_BACKUP_INDEX  $sout_path  
+            [ $? -eq 0 ] || { logfatal  sync   fail mv $sdata_dir/backup/0  to $sout_path  ; return 1 ; }
         else
             mkdir $sout_path
             $CMD_RSYNC -avz $host:$sdata_dir/backup/inc/ $sout_path
-            [ $? -eq 0 ] || { echo  sync  inc data failed failed plz check $host:$sdata_dir  ; return 1 ; }
-            [ -f $sout_path/ctrl ] || { echo  no ctrl find in $sout_path/ctrl; return 1 ; }
-            
+            [ $? -eq 0 ] || { logfatal sync  inc data failed failed plz check $host:$sdata_dir  ; return 1 ; }
+            [ -f $sout_path/ctrl ] || { logfatal no ctrl find in $sout_path/ctrl; return 1 ; }
         fi
     fi
 
+
+    cp $SCRIPT_LIB/bak_ctrl.in $sout_path/ctrl
+
     if [ ! -d $sout_path ] ; then
-        echo "Noexist $sout_path 0";
+        logfatal "Noexist $sout_path 0";
         return  1
     fi
-
-    if [ -f $sout_path/rts ] ; then 
-        ts=$(cat $sout_path/rts);
-    fi
-
-    if [ -z $ts ] ; then
-        ts=1
-        echo "Warning $sout_path has no rts file"
-    fi
-
-    rm -rf $sout_path/uulog
-    mkdir -p $sout_path/uulog
 
     #copy ulog
     if [ $need_remote == '1' ] ; then 
         mkdir -p  $sout_path/mlog 
         $CMD_RSYNC -av $host:$sulog_dir/ $sout_path/mlog
-        [ $? -eq 0 ] || { echo  sync  log failed plz check $host:$sulog_dir/  ; return 1 ; }
+        [ $? -eq 0 ] || { logwarn  sync  log failed plz check $host:$sulog_dir/  ; return 1 ; }
         sulog_dir=$sout_path/mlog
     fi
+    log_replay $sout_path $sulog_dir
 
-
-    echo $TT_TOOL_TOP/ttulmgr export  -ts $ts  $sulog_dir
-    $TT_TOOL_TOP/ttulmgr export  -ts $ts  $sulog_dir | \
-        tee  $sout_path/uulog/1.tsv | \
-        $TT_TOOL_TOP/ttulmgr import $sout_path/uulog
-
-    [ $? -eq 0 ] || { echo  import log failed plz check ; return 1 ; }
-
-    cd $sout_path && rm -rf log.err && ./ctrl start
-    sleep 2
-     $TT_TOOL_TOP/tcrmgr restore -port $bport -ts $ts localhost $sout_path/uulog
-    [ $? -eq 0 ] || { echo  restore failed plz check ; return 1 ; }
-    cd $sout_path && ./ctrl status
-    cd $sout_path && ./ctrl stop
-    tail -n 1 $sout_path/uulog/1.tsv | awk '{print $1}' > $sout_path/rts 
-    cat $sout_path/rts
 
 } 
 

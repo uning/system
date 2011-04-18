@@ -18,15 +18,17 @@
 #===============================================================================
 
 
-
+WORK_DIR=`pwd`
 
 page_root=`dirname $0`
 my_ab_path=`cd $page_root && pwd`
 my_name=`basename $my_ab_path`
 
 
-[  -f $my_ab_path/config.sh ] || { echo config find  ; exit ; }
-. $my_ab_path/config.sh
+sconff=$my_ab_path/config.sh
+[  -f $sconff ] || { echo $sconff config not find >&2 ; exit ; }
+. $sconff
+
 
 usage(){
 cat <<EOT
@@ -46,13 +48,6 @@ EOT
 check_help $*
 
 
-#check tools
-if [ -f $USER_HOME/bin/sl/bin/setslenv.sh ] ; then
-    cd  $USER_HOME/bin/sl/bin; . ./setslenv.sh; cd - 1>/dev/null 2>&1
-else     
-    echo "no tool find"
-    exit 
-fi      
 
 check_if_exit $TT_TOOL_TOP/tcrmgr -x
 

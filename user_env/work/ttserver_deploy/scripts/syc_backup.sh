@@ -48,4 +48,4 @@ fi
 echo $tdate >$sout_path/date
 echo $ts >$sout_path/rts
 cp $spath $sout_path
-echo [$tdate] $2 $1 >>$my_ab_path/ttbakup.log
+echo [$tdate] $2 $1 $sout_path >>$my_ab_path/ttbakup.log

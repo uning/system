@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 
 #----------------------------------------------------------------
 # Startup script for the server of Tokyo Tyrant
@@ -6,35 +6,50 @@
 
 ## 
 ## 需要修改，对于主库，启动优化参数,名称不能含有数字
-## 
+## 从库需要主库的ip port
 ##
-runopts="-ld"  #-le only error; -ld debug
+
+runopts="-le"  #-le only error; -ld debug
+#mhost="127.0.0.1"
+#mport=$port
+
+page_root=$(dirname $0)
+my_ab_path=$(cd $page_root && pwd)
+my_name=$(basename $my_ab_path)
+sconff=$my_ab_path/../scripts/config.sh
+if [  -f $sconff ]  ; then 
+    . $sconff
+else 
+    sconff=$my_ab_path/../../../scripts/config.sh
+    if [  -f $sconff ] ; then
+        . $sconff
+    else
+        echo noconf find . exit
+        exit 1
+    fi
+
+fi
 
 
 
 # configuration variables
-prog="ttservctl"
-tool_top="/usr/local/bin"
+prog="$0"
+tool_top=$TT_TOOL_TOP
 cmd="$tool_top/ttserver"
-page_root=$(dirname $0)
-my_ab_path=$(cd $page_root && pwd)
 
-my_f_path=$(cd $my_ab_path/../../ && pwd)
-my_name=$(basename $my_f_path)
-port=${my_name##*.}
-port=$(echo $port | sed s/[^0-9]//g)
-port=$((port+1))
-dbconfig=$(grep 'dbconfig=' $my_f_path/ctrl)
-eval $dbconfig
+port=$(get_port_from_dir $my_ab_path)
+[ $? -eq 0 ] || { echo   not get port    ; exit 1 ; }
 
 sid=$port
+dbconfig="data.tcb#lmemb=1024#nmemb=2048#bnum=2000000"  #for key value
 
-basedir=$my_ab_path
 pidfile="$basedir/pid"
 logfile="$basedir/log.err"
 ulimsiz="256m"
-rtsfile="$basedir/rts.run"
-dbname="$basedir/$dbconfig"
+rtsfile="$basedir/data/rts"
+dbname="$basedir/data/$dbconfig"
+ulogdir="$basedir/data/ulog" #//如果不需要ulog，註釋掉即可
+mkdir -p $basedir/data/
 
 
 maxcon="65535"
@@ -70,7 +85,7 @@ start(){
     printf 'No such directory: %s\n' "$basedir"
     retval=1
   elif [ -f "$pidfile" ] ; then
-      pid=$(cat "$pidfile")
+    pid=`cat "$pidfile"`
     printf 'Existing process: %d\n' "$pid"
     retval=1
   else

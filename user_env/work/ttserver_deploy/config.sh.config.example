@@ -1,7 +1,0 @@
-
-#不同平台可能不同
-USER_HOME=$(cd ~/ && pwd)
-TT_TOOL_TOP=$USER_HOME/work/sys/ttserver/bin
-CDM_SCP=scp
-CMD_RSYNC=rsync
-
