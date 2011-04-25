@@ -116,7 +116,7 @@ dump_ttserver_data()
 
 
    local spath=$(tstatus path $port $host)
-    [ ! -f "$spath" ] && { echo $host $port not get db path plz check ; return 1 ; }
+    [  -n "$spath" ] || { echo $host $port not get db path plz check ; return 1 ; }
    local dbtype=${spath##*.} # get ext 
    local sout_name=$(basename $spath)
    local sdata_dir=$(dirname $(dirname $spath))
@@ -376,10 +376,10 @@ echo $ctrlname=ctrlname
 #从目录获取ttserver run port
 get_port_from_dir()
 {
-    dir=$1;
-    abdir=$(cd $dir && pwd );
-    my_name=$(basename $abdir)
-    port=$(echo ${my_name##*.} | sed s/[^0-9]//g)
+    local dir=$1;
+    local abdir=$(cd $dir && pwd );
+    local my_name=$(basename $abdir)
+    local port=$(echo ${my_name##*.} | sed s/[^0-9]//g)
     [  -n "$port" ] && { echo $port ; return 0 ; }
     abdir=$(cd $abdir/../../ && pwd );
     my_name=$(basename $abdir)
@@ -413,9 +413,6 @@ log_replay()
     fi
     [ -n "$ts" ] || ts=1
 
-    #loginfo $TT_TOOL_TOP/tcrmgr repl   -ph -port $port -ts $ts  localhost
-    #loginfo $TT_TOOL_TOP/tcrmgr restore -port $port -ts $ts   localhost $ulogdir
-    #exit
     #$TT_TOOL_TOP/tcrmgr repl   -ph -port $port -ts $ts  localhost | awk '{print $1}' >$sdir/tm.list &
     $TT_TOOL_TOP/tcrmgr restore -port $port -ts $ts localhost $ulogdir
 
@@ -430,7 +427,6 @@ log_replay()
         logwarn getts $sdir/rts.restore 
     fi
     #trick get ts
-
 
 
 }
@@ -475,10 +471,9 @@ local_inc_dump()
             mv  $sdata_dir/backup/$NOW_BACKUP_INDEX  $sout_path  
             [ $? -eq 0 ] || { logfatal  sync   fail mv $sdata_dir/backup/$NOW_BACKUP_INDEX  to $sout_path  ; return 1 ; }
         else
-            mkdir $sout_path
+            mkdir -p $sout_path
             dump_ttserver_data $port $host $sout_path
             [ $? -eq 0 ] || { logfatal sync  inc data failed failed plz check $host:$sdata_dir  ; return 1 ; }
-            [ -f $sout_path/ctrl ] || { logfatal no ctrl find in $sout_path/ctrl; return 1 ; }
         fi
     fi
 
