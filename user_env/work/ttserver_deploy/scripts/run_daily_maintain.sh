@@ -84,15 +84,5 @@ do
 done 
 
 
-#清理日志ulog
-for f in `find -L $ttserver_deploy_dir -ctime +1 -name *.ulog`
-do
-    echo rm $f
-    rm $f
-done
 
-#cat log.err
-for f in `find -L $ttserver_deploy_dir -name log.err  -size +50M`
-do
-    echo "" > $f
-done
+clean_logs $ttserver_deploy_dir

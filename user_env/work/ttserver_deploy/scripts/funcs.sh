@@ -65,10 +65,10 @@ run_status()
 #tcrmgr inform 字段获取
 tstatus()
 {
-    vname=$1
-    port=$2
-    host=$3
-    prog=$4
+    local vname=$1
+    local port=$2
+    local host=$3
+    local prog=$4
     [ -n "$host" ]   || host='localhost'
     [ -n "$prog" ]   || prog=$TT_TOOL_TOP/tcrmgr 
 
@@ -103,27 +103,27 @@ restore_tt(){
 #將目標ttserver数据按周日期dump，到其对应数据的backup目录
 dump_ttserver_data()
 {
-    port=$1
-    host=$2
-    dir=$3
-    sid=$4
+   local  port=$1
+   local  host=$2
+   local  dir=$3
+   local  sid=$4
     [ -n "$host" ]   || host='localhost'
 
-    need_remote=1
+   local need_remote=1
     if [ "$host" == "localhost" ]  || [ "$host" == "127.0.0.1" ] ; then
         need_remote=0
     fi
 
 
-    spath=$(tstatus path $port $host)
+   local spath=$(tstatus path $port $host)
     [ ! -f "$spath" ] && { echo $host $port not get db path plz check ; return 1 ; }
-    dbtype=${spath##*.} # get ext 
-    sout_name=$(basename $spath)
-    sdata_dir=$(dirname $(dirname $spath))
-    sout_path=$sdata_dir/backup/$NOW_BACKUP_INDEX
-    sout_file=$sout_path/$sout_name
+   local dbtype=${spath##*.} # get ext 
+   local sout_name=$(basename $spath)
+   local sdata_dir=$(dirname $(dirname $spath))
+   local sout_path=$sdata_dir/backup/$NOW_BACKUP_INDEX
+   local sout_file=$sout_path/$sout_name
 
-    scripts_dir=$(dirname $sdata_dir)
+   local scripts_dir=$(dirname $sdata_dir)
 
     if [ $need_remote -eq 1 ] ; then
         $CMD_SCP -r $SCRIPT_LIB $host:$scripts_dir/ 
@@ -152,7 +152,7 @@ dump_ttserver_data()
 #檢查監聽端口是否正常
 listen_port_check()
 {
-    port=$1
+    local port=$1
     netstat -nlp  2>/dev/null | grep  ":$port"  |  grep 'tcp'  |  awk -v var=$port 'BEGIN{RS=" ";FS=":"}{ if($2==var) find=2 }END{if(find==2)print 1;else print 0}'
 }
 
@@ -160,11 +160,11 @@ listen_port_check()
 #产生配置文件
 gen_ctrl()
 {
-    ctrlname=$1
-    dbfname=$2 
-    mport=$3
-    mhost=$4
-    sid=$5
+   local ctrlname=$1
+   local dbfname=$2 
+   local mport=$3
+   local mhost=$4
+   local sid=$5
     cat >$ctrlname <<EOTT
 #!/bin/sh
 
@@ -379,11 +379,11 @@ get_port_from_dir()
     dir=$1;
     abdir=$(cd $dir && pwd );
     my_name=$(basename $abdir)
-    port=$(echo $my_name | awk -F. '{print $2}' | sed s/[^0-9]//g)
+    port=$(echo ${my_name##*.} | sed s/[^0-9]//g)
     [  -n "$port" ] && { echo $port ; return 0 ; }
     abdir=$(cd $abdir/../../ && pwd );
     my_name=$(basename $abdir)
-    port=$(echo $my_name | awk -F. '{print $2}' | sed s/[^0-9]//g)
+    port=$(echo ${my_name##*.} | sed s/[^0-9]//g)
     [  -n "$port" ] && { echo $((port+1)) ; return 0 ; }
     return 1 
 
@@ -393,8 +393,8 @@ get_port_from_dir()
 #ulog dir
 log_replay()
 {
-    sdir=$1
-    ulogdir=$2
+    local sdir=$1
+    local ulogdir=$2
     [  -f  $sdir/ctrl ] || { logwarn $sdir/ctrl not exist ; return 1 ; }
     [  -d  $ulogdir ] || { logwarn $ulogdir not exist ; return 1 ; }
     $sdir/ctrl start
@@ -403,8 +403,9 @@ log_replay()
     port=$(get_port_from_dir $sdir)
     [ $? -eq 0 ] || { logfatal  not get port    ; return 1 ; }
 
+    #默认使用data下的rts 作为同步起始时间
     if [ ! -f $sdir/rts.restore ] ; then 
-        cp $sdir/rts $sdir/rts.restore
+        cp $sdir/data/rts $sdir/rts.restore
     fi
 
     if [ -f $sdir/rts.restore ] ; then 
@@ -412,11 +413,13 @@ log_replay()
     fi
     [ -n "$ts" ] || ts=1
 
-    loginfo $TT_TOOL_TOP/tcrmgr repl   -ph -port $port -ts $ts  localhost
-    loginfo $TT_TOOL_TOP/tcrmgr restore -port $port -ts $ts   localhost $ulogdir
+    #loginfo $TT_TOOL_TOP/tcrmgr repl   -ph -port $port -ts $ts  localhost
+    #loginfo $TT_TOOL_TOP/tcrmgr restore -port $port -ts $ts   localhost $ulogdir
     #exit
-    $TT_TOOL_TOP/tcrmgr repl   -ph -port $port -ts $ts  localhost | awk '{print $1}' >$sdir/tm.list &
+    #$TT_TOOL_TOP/tcrmgr repl   -ph -port $port -ts $ts  localhost | awk '{print $1}' >$sdir/tm.list &
     $TT_TOOL_TOP/tcrmgr restore -port $port -ts $ts localhost $ulogdir
+
+    $TT_TOOL_TOP/ttulmgr  export -ts $ts $ulogdir  | awk '{print $1}' >$sdir/tm.list 
     sleep 5
     $sdir/ctrl stop
     ts=$(tail -n 1 $sdir/tm.list | awk '{print $1}') 
@@ -430,7 +433,6 @@ log_replay()
 
 
 
-
 }
 
 
@@ -438,27 +440,27 @@ log_replay()
 #远程机器 ：rsync远程ulog到本机，按本机执行
 local_inc_dump()
 {
-    port=$1
-    host=$2
-    dir=$3
+    local port=$1
+    local host=$2
+    local dir=$3
     [ -n "$host" ]   || host='localhost'
 
 
-    spath=$(tstatus  path $port   $host)
+    local spath=$(tstatus  path $port   $host)
 
     [ -z "$spath" ] && { logfatal $host:$port not get db path plz check; return 1 ; }
-    dbtype=${spath##*.} # get ext 
-    sout_name=$(basename $spath)
-    sdata_dir=$(dirname $(dirname $spath))
-    sulog_dir=$sdata_dir/data/ulog
-    sout_path=$sdata_dir/backup/inc
+    local dbtype=${spath##*.} # get ext 
+    local sout_name=$(basename $spath)
+    local sdata_dir=$(dirname $(dirname $spath))
+    local sulog_dir=$sdata_dir/data/ulog
+    local sout_path=$sdata_dir/backup/inc
 
-    need_remote=0
+    local need_remote=0
     if [ "$host" != "localhost" ]  &&  [ "$host" != "127.0.0.1" ] ; then
         need_remote=1
         bport=${dir##*.}
         bport=$(($bport+1))
-        sout_path=$dir/backup/minc
+        local sout_path=$dir/backup/minc
     fi
 
 
@@ -471,18 +473,16 @@ local_inc_dump()
             fi
 
             mv  $sdata_dir/backup/$NOW_BACKUP_INDEX  $sout_path  
-            [ $? -eq 0 ] || { logfatal  sync   fail mv $sdata_dir/backup/0  to $sout_path  ; return 1 ; }
+            [ $? -eq 0 ] || { logfatal  sync   fail mv $sdata_dir/backup/$NOW_BACKUP_INDEX  to $sout_path  ; return 1 ; }
         else
             mkdir $sout_path
-            $CMD_RSYNC -avz $host:$sdata_dir/backup/inc/ $sout_path
+            dump_ttserver_data $port $host $sout_path
             [ $? -eq 0 ] || { logfatal sync  inc data failed failed plz check $host:$sdata_dir  ; return 1 ; }
             [ -f $sout_path/ctrl ] || { logfatal no ctrl find in $sout_path/ctrl; return 1 ; }
         fi
     fi
 
-
     cp $SCRIPT_LIB/bak_ctrl.in $sout_path/ctrl
-
     if [ ! -d $sout_path ] ; then
         logfatal "Noexist $sout_path 0";
         return  1
@@ -500,3 +500,21 @@ local_inc_dump()
 
 } 
 
+clean_logs()
+{
+    ttserver_deploy_dir=$1
+    [ -n "$ttserver_deploy_dir" ] || ttserver_deploy_dir=./
+    #清理日志ulog
+    for f in `find -L $ttserver_deploy_dir -ctime +1 -name *.ulog`
+    do                      
+        echo rm $f                  
+        rm $f                               
+    done                                    
+
+    #cat log.err
+    for f in `find -L $ttserver_deploy_dir -name log.err  -size +50M`
+    do                                              
+        echo "" > $f                                        
+    done                                                            
+
+}

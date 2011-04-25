@@ -37,8 +37,16 @@ cmd="$tool_top/ttserver"
 port=$(get_port_from_dir $my_ab_path)
 [ $? -eq 0 ] || { echo   not get port    ; exit 1 ; }
 
-dbconfig=$(grep 'dbconfig=' $my_ab_path/../../ctrl)
-eval $dbconfig
+#dbconfig=$(grep 'dbconfig=' $my_ab_path/../../ctrl)
+#eval $dbconfig
+dataf=$(find $my_ab_path/data -name  '*.tc[tb]')
+
+echo $dataf;
+[  -n "$dataf" ] || { echo no dataf find ; exit 1 ; }
+dataname=$(basename $dataf)
+[  -n "$dataname" ] || { echo no db file  find ; exit 1 ; }
+dbconfig="$dataname#lmemb=1024#nmemb=2048#bnum=2000000"  #for key value
+
 
 sid=$port
 
@@ -46,11 +54,11 @@ basedir=$my_ab_path
 pidfile="$basedir/pid"
 logfile="$basedir/log.err"
 ulimsiz="256m"
-rtsfile="$basedir/rts.run"
+rtsfile="$basedir/data/rts"
 
-ulogdir="$basedir/ulog"
+ulogdir="$basedir/data/ulog"
 mkdir -p $ulogdir
-dbname="$basedir/$dbconfig"
+dbname="$basedir/data/$dbconfig"
 
 
 maxcon="65535"
