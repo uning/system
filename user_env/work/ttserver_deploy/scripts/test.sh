@@ -10,7 +10,7 @@ sconff=$my_ab_path/config.sh
 [  -f $sconff ] || { echo $sconff config not find >&2 ; exit ; }
 . $sconff
 
-local_inc_dump 15000 192.168.1.50 /home/hotel/ttserver_deploy/main.17002/
+local_inc_dump 15000 #192.168.1.50 /home/hotel/ttserver_deploy/main.17002/
 
 exit
 
