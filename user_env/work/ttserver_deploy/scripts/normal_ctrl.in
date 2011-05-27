@@ -43,6 +43,7 @@ port=$(get_port_from_dir $my_ab_path)
 sid=$port
 dbconfig="data.tcb#lmemb=1024#nmemb=2048#bnum=2000000"  #for key value
 
+basedir=$my_ab_path
 pidfile="$basedir/pid"
 logfile="$basedir/log.err"
 ulimsiz="256m"
@@ -77,7 +78,6 @@ status(){
 # start the server
 start(){
   printf 'Starting the server of Tokyo Tyrant\n'
-  mkdir -p "$basedir"
   if [ -z "$basedir" ] || [ -z "$port" ] || [ -z "$pidfile" ] || [ -z "$dbname" ] ; then
     printf 'Invalid configuration\n'
     retval=1

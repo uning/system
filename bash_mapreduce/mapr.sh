@@ -74,21 +74,21 @@ read_machine_conf
 run(){
     start_prog 
 
-#    if [ -f $ERR_OUT ] ; then
+#  if [ -f $ERR_OUT ] ; then
 #       send_error_report_exit "in start_prog"
 #  fi
 
     mport=$((RUN_TIME+1))
     if [ $mport -eq 1 ] ;then
-        write_std 'invalid RUNTIME ,use default 3600'
-        RUN_TIME=3600
+        loginfo 'invalid RUNTIME ,use default 10'
+        RUN_TIME=10
     fi
 
 
     elapse_sec=0
     while true
     do
-        write_std "sleep $RUN_TIME secs, elapse_sec=$elapse_sec secs"
+        loginfo "sleep $RUN_TIME secs, elapse_sec=$elapse_sec secs"
         if [ $elapse_sec  -lt $RUN_TIME ] ; then
             sleep $RUN_TIME
             elapse_sec=$(($elapse_sec+$RUN_TIME))
@@ -97,7 +97,7 @@ run(){
 
         retry=$((retry+1))
         if [ $retry -lt 2 ] ; then 
-            write_std "retry=$retry"
+            loginfo "retry=$retry"
             check_result
         else
             send_error_report_exit "max retry check_result"
@@ -112,7 +112,7 @@ run(){
 #        if [  -f $PROG_ADIR/flag.start ] ; then 
 #           break
 #        fi
-        sleep 30
+        sleep 5
 
     done
 }
