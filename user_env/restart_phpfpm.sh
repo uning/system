@@ -2,8 +2,8 @@
 
 
 killall php-fpm
-rm -rf /home/hotel/work/log/php/*
-/home/hotel/work/sys/php/sbin/php-fpm
+rm -rf ~/work/log/php/*
+~/work/sys/php/sbin/php-fpm
 
 
-tail /home/hotel/work/log/php/*
+tail ~/work/log/php/*

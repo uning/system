@@ -30,6 +30,7 @@ RUN_DATE=$(date)
 
 TODAY_INDEX=$(($(date +%s)/86400))
 BAK_KEEP_NUM=2 #保留最近多少天的备份数据
+ULOG_KEEP_DAY=3
 NOW_BACKUP_INDEX=$(($TODAY_INDEX%$BAK_KEEP_NUM)) 
 
 
@@ -500,7 +501,7 @@ clean_logs()
     ttserver_deploy_dir=$1
     [ -n "$ttserver_deploy_dir" ] || ttserver_deploy_dir=./
     #清理日志ulog
-    for f in `find -L $ttserver_deploy_dir -ctime +1 -name *.ulog`
+    for f in `find -L $ttserver_deploy_dir -ctime +$ULOG_KEEP_DAY -name *.ulog`
     do                      
         echo rm $f                  
         rm $f                               
